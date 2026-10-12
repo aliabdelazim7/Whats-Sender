@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Trash2, CheckCircle2, XCircle, Copy, AlertCircle, UserCheck, CloudUpload, RefreshCw } from 'lucide-react';
+import { Search, Trash2, CheckCircle2, XCircle, Copy, UserCheck, CloudUpload, RefreshCw } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { Contact } from '../../types';
 import { syncToGoogleSheets } from '../../lib/sheets';

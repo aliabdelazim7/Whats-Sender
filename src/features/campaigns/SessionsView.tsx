@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Play,
-  Pause,
   SkipForward,
   CheckCircle2,
   ExternalLink,
@@ -9,12 +7,9 @@ import {
   RotateCcw,
   Clock,
   ShieldCheck,
-  ChevronRight,
-  ChevronLeft,
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { CampaignSession, QueueItem } from '../../types';
-import { WhatsAppClickToChatAdapter } from '../../adapters/messaging';
 
 interface SessionsViewProps {
   session: CampaignSession | null;
@@ -32,7 +27,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   onResetSession,
 }) => {
   const { settings, t } = useSettings();
-  const whatsappAdapter = new WhatsAppClickToChatAdapter();
   const [popupBlocked, setPopupBlocked] = useState(false);
   const [lastOpenedUrl, setLastOpenedUrl] = useState<string | null>(null);
 
@@ -90,7 +84,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
           attemptCount: currentItem.attemptCount + 1,
         });
       }
-    } catch (e) {
+    } catch {
       setPopupBlocked(true);
     }
   };
@@ -139,15 +133,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
     }
   };
 
-  const handleNavigate = (newIdx: number) => {
-    if (newIdx >= 0 && newIdx < queue.length) {
-      onUpdateSession({
-        ...session,
-        currentIndex: newIdx,
-        updatedAt: Date.now(),
-      });
-    }
-  };
+
 
   return (
     <div className="space-y-6">
@@ -336,7 +322,15 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => handleNavigate(idx)}
+                    onClick={() => {
+                      if (idx >= 0 && idx < queue.length) {
+                        onUpdateSession({
+                          ...session,
+                          currentIndex: idx,
+                          updatedAt: Date.now(),
+                        });
+                      }
+                    }}
                     className={`w-full text-left rtl:text-right p-2.5 rounded-lg border text-xs transition cursor-pointer flex items-center justify-between ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 font-bold'

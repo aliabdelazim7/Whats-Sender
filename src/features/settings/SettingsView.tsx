@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Database, Trash2, Check, Globe, Moon, Sun } from 'lucide-react';
+import { ShieldCheck, Trash2, Check, Globe, Sun } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 
 interface SettingsViewProps {

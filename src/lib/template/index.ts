@@ -6,7 +6,7 @@ export interface RenderTemplateResult {
   hasErrors: boolean;
 }
 
-const STANDARD_VARS = ['name', 'phone', 'company', 'email'];
+export const STANDARD_VARS = ['name', 'phone', 'company', 'email'];
 
 /**
  * Extracts all unique placeholder variable names inside {{variable}}

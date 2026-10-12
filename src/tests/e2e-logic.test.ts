@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Contact, CampaignSession, QueueItem } from '../types';
+import { QueueItem } from '../types';
 import { renderTemplate } from '../lib/template';
-import { normalizePhoneNumber } from '../lib/phone';
 import { buildContactsFromRows } from '../lib/spreadsheet/mapper';
 import { WhatsAppClickToChatAdapter } from '../adapters/messaging';
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileType, CheckCircle2, AlertTriangle, ArrowRight, Table, Globe } from 'lucide-react';
+import { Upload, FileType, CheckCircle2, AlertTriangle, Table, Globe } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { parseSpreadsheetFile, ParsedSpreadsheet } from '../../lib/spreadsheet';
 import { buildContactsFromRows } from '../../lib/spreadsheet/mapper';

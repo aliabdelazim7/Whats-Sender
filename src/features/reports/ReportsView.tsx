@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileSpreadsheet, Shield, FileText } from 'lucide-react';
+import { FileSpreadsheet, Shield, FileText } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { QueueItem } from '../../types';
 import { exportQueueReportToCsv, exportQueueReportToXlsx, downloadBlob } from '../../lib/export';

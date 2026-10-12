@@ -2,8 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   Save,
   Trash2,
-  Copy,
-  ExternalLink,
   AlertTriangle,
   CheckCircle,
   Eye,
@@ -12,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { Contact, MessageTemplate } from '../../types';
-import { renderTemplate, extractTemplateVariables } from '../../lib/template';
+import { renderTemplate, STANDARD_VARS } from '../../lib/template';
 import { WhatsAppClickToChatAdapter } from '../../adapters/messaging';
 
 interface MessageComposerProps {
@@ -60,9 +58,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     ? whatsappAdapter.createMessageLink(currentRecipient, renderResult.renderedText)
     : null;
 
-  const usedVariables = extractTemplateVariables(content);
-
-  const standardPlaceholders = ['name', 'phone', 'company', 'email'];
+  const standardPlaceholders = STANDARD_VARS;
   // Include any custom fields present across contacts
   const customFieldKeys = Array.from(
     new Set(contacts.flatMap((c) => Object.keys(c.customFields || {})))

@@ -53,7 +53,7 @@ export async function syncToGoogleSheets(
       message: data.message || 'تمت المزامنة بنجاح',
       syncedCount: data.syncedCount || contacts.length,
     };
-  } catch (err: any) {
+  } catch {
     return {
       success: true,
       message: 'تم إرسال البيانات إلى Google Sheets بنجاح',
@@ -116,7 +116,7 @@ export async function fetchContactsFromGoogleSheets(webAppUrl: string): Promise<
 
       return Array.from(uniqueMap.values());
     }
-  } catch (err) {
+  } catch {
     // Silently ignore network failures to avoid blocking UI
   }
   return [];
