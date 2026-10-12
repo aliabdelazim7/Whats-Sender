@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Trash2, CheckCircle2, XCircle, Copy, AlertCircle, UserCheck } from 'lucide-react';
+import { Search, Trash2, CheckCircle2, XCircle, Copy, AlertCircle, UserCheck, CloudUpload } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { Contact } from '../../types';
+import { syncToGoogleSheets } from '../../lib/sheets';
 
 interface ContactsViewProps {
   contacts: Contact[];
@@ -18,7 +19,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
   onOpenImport,
   onToggleExclude,
 }) => {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'valid' | 'invalid' | 'duplicates'>('all');
   const [page, setPage] = useState(1);
@@ -46,6 +47,32 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
   const totalPages = Math.ceil(filteredContacts.length / pageSize) || 1;
   const paginatedContacts = filteredContacts.slice((page - 1) * pageSize, page * pageSize);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  const handleSyncToSheets = async () => {
+    if (!settings.googleAppsScriptUrl) {
+      alert('يرجى أولاً إدخال رابط Google Apps Script Web App من تبويب الإعدادات (Settings).');
+      return;
+    }
+    if (contacts.length === 0) {
+      alert('لا توجد جهات اتصال لمزامنتها.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await syncToGoogleSheets(settings.googleAppsScriptUrl, contacts);
+      setSyncStatus(`تم حفظ ${res.syncedCount || contacts.length} جهة اتصال في Google Sheets بنجاح!`);
+      setTimeout(() => setSyncStatus(null), 5000);
+    } catch (e: any) {
+      alert(e.message || 'فشلت المزامنة مع Google Sheets');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header & Actions */}
@@ -58,6 +85,18 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {contacts.length > 0 && (
+            <button
+              disabled={isSyncing}
+              onClick={handleSyncToSheets}
+              title="مزامنة وحفظ الأرقام في Google Sheets عبر Apps Script"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 rounded-lg transition cursor-pointer border border-emerald-200 dark:border-emerald-800 disabled:opacity-50"
+            >
+              <CloudUpload className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+              <span>{isSyncing ? 'جاري الحفظ...' : 'حفظ في Google Sheets'}</span>
+            </button>
+          )}
+
           {contacts.length > 0 && (
             <button
               onClick={() => {
@@ -80,6 +119,13 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {syncStatus && (
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{syncStatus}</span>
+        </div>
+      )}
 
       {/* Search & Filters Bar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">

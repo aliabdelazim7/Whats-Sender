@@ -130,6 +130,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClearAllLocalData 
           </label>
         </div>
 
+        {/* Google Apps Script Integration */}
+        <div className="pb-6 border-b border-slate-100 dark:border-slate-800 space-y-2">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Google Apps Script Web App URL (لحفظ الأرقام في Google Sheets):
+          </label>
+          <input
+            type="url"
+            placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+            value={settings.googleAppsScriptUrl || ''}
+            onChange={(e) => updateSettings({ googleAppsScriptUrl: e.target.value })}
+            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-xs outline-hidden font-mono"
+          />
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            ضع هنا رابط الـ Web App المنشور من Google Apps Script ليتم حفظ جهات الاتصال والأرقام في Google Sheet مباشرة بنقرة زر.
+          </p>
+        </div>
+
         {/* Privacy Notice Card */}
         <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-4 rounded-xl space-y-1.5">
           <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">

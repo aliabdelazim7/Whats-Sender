@@ -88,4 +88,5 @@ export interface AppSettings {
   defaultCountry: string; // e.g. "EG"
   mockMode: boolean; // useful for testing without actually launching popups
   maskPhoneInReports: boolean;
+  googleAppsScriptUrl?: string; // Web App URL for sync to Google Sheets
 }
