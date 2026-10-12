@@ -33,6 +33,7 @@ export async function syncToGoogleSheets(
       isValid: c.isValidPhone,
       status: c.phoneStatus,
       isDuplicate: c.isDuplicate || false,
+      messagingStatus: c.messagingStatus || 'unsent',
       createdAt: new Date(c.createdAt).toLocaleString(),
     })),
   };
@@ -92,6 +93,7 @@ export async function fetchContactsFromGoogleSheets(webAppUrl: string): Promise<
         email: c.email || '',
         customFields: {},
         isDuplicate: Boolean(c.isDuplicate),
+        messagingStatus: c.messagingStatus === 'sent' ? 'sent' : 'unsent',
         createdAt: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
       }));
     }

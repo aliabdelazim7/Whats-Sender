@@ -63,14 +63,27 @@ export function AppContent() {
           setQueue(queueItems);
         }
 
-        // If local storage is empty, auto-fetch from Google Sheets in background
+        // Automatic background pull: always fetch latest remote updates from Google Sheets on start
         const settings = getSettings();
-        if (storedContacts.length === 0 && settings.googleAppsScriptUrl) {
+        if (settings.googleAppsScriptUrl) {
           fetchContactsFromGoogleSheets(settings.googleAppsScriptUrl)
             .then(async (remoteContacts) => {
               if (remoteContacts && remoteContacts.length > 0) {
-                setContacts(remoteContacts);
-                await saveContacts(remoteContacts);
+                // Merge intelligently preserving newest statuses
+                setContacts((prev) => {
+                  const map = new Map<string, Contact>();
+                  remoteContacts.forEach((c) => map.set(c.normalizedPhone || c.id, c));
+                  // Prefer current local changes if more recent
+                  prev.forEach((c) => {
+                    const key = c.normalizedPhone || c.id;
+                    if (c.messagingStatus === 'sent') {
+                      map.set(key, c);
+                    }
+                  });
+                  const merged = Array.from(map.values());
+                  saveContacts(merged).catch(() => {});
+                  return merged;
+                });
               }
             })
             .catch(() => {});
@@ -206,6 +219,12 @@ export function AppContent() {
         );
         setContacts(newContactsList);
         await saveContacts([updatedContact]);
+
+        // Auto-push status update to Google Sheets immediately in background
+        const settings = getSettings();
+        if (settings.googleAppsScriptUrl) {
+          syncToGoogleSheets(settings.googleAppsScriptUrl, [updatedContact]).catch(() => {});
+        }
       }
     }
   };
