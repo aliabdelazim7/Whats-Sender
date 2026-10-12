@@ -129,12 +129,36 @@ export async function getSession(id: string): Promise<CampaignSession | undefine
 export async function getLatestSession(): Promise<CampaignSession | undefined> {
   const db = await getDB();
   const all = await db.getAllFromIndex('sessions', 'by-created');
-  return all[all.length - 1];
+  const activeSessions = all.filter((s) => s.status !== 'completed');
+  return activeSessions[activeSessions.length - 1];
 }
 
 export async function saveSession(session: CampaignSession): Promise<void> {
   const db = await getDB();
   await db.put('sessions', session);
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['sessions', 'queue'], 'readwrite');
+  await tx.objectStore('sessions').delete(sessionId);
+  
+  const queueStore = tx.objectStore('queue');
+  const queueIndex = queueStore.index('by-session');
+  let cursor = await queueIndex.openCursor(IDBKeyRange.only(sessionId));
+  while (cursor) {
+    await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
+export async function clearAllSessions(): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['sessions', 'queue'], 'readwrite');
+  await tx.objectStore('sessions').clear();
+  await tx.objectStore('queue').clear();
+  await tx.done;
 }
 
 export async function getQueueItems(sessionId: string): Promise<QueueItem[]> {

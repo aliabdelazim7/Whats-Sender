@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Clock,
   ShieldCheck,
+  XOctagon,
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { CampaignSession, QueueItem } from '../../types';
@@ -17,6 +18,8 @@ interface SessionsViewProps {
   onUpdateQueueItem: (item: QueueItem) => void;
   onUpdateSession: (session: CampaignSession) => void;
   onResetSession: () => void;
+  onRestartSession?: () => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export const SessionsView: React.FC<SessionsViewProps> = ({
@@ -25,20 +28,58 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   onUpdateQueueItem,
   onUpdateSession,
   onResetSession,
+  onRestartSession,
+  onNavigateTab,
 }) => {
   const { settings, t } = useSettings();
   const [popupBlocked, setPopupBlocked] = useState(false);
   const [lastOpenedUrl, setLastOpenedUrl] = useState<string | null>(null);
   const [showQueueOnMobile, setShowQueueOnMobile] = useState(false);
 
-  if (!session || queue.length === 0) {
+  if (!session || queue.length === 0 || session.status === 'completed') {
+    const isCompleted = session?.status === 'completed';
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-12 text-center max-w-lg mx-auto shadow-xs">
-        <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-2">
-          {t.sessions.noActiveSession}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-12 text-center max-w-lg mx-auto shadow-xs space-y-4">
+        {isCompleted ? (
+          <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+        ) : (
+          <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+        )}
+        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+          {isCompleted ? '🎉 اكتملت جلسة المراسلة بنجاح!' : t.sessions.noActiveSession}
         </h3>
-        <p className="text-xs text-slate-500 mb-6 leading-relaxed">{t.sessions.subtitle}</p>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          {isCompleted
+            ? 'تم الانتهاء من جميع جهات الاتصال في هذه الجلسة. يمكنك استعراض التقارير أو بدء جلسة جديدة.'
+            : t.sessions.subtitle}
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+          {onNavigateTab && (
+            <button
+              onClick={() => onNavigateTab('composer')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer shadow-xs min-h-[44px]"
+            >
+              <span>+ {t.sessions.startNewSession}</span>
+            </button>
+          )}
+          {onNavigateTab && isCompleted && (
+            <button
+              onClick={() => onNavigateTab('reports')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer min-h-[44px]"
+            >
+              <span>عرض التقارير</span>
+            </button>
+          )}
+          {isCompleted && (
+            <button
+              onClick={onResetSession}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 rounded-xl transition cursor-pointer min-h-[44px]"
+            >
+              <span>إغلاق الجلسة</span>
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -152,12 +193,26 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onRestartSession && (
+              <button
+                type="button"
+                onClick={onRestartSession}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer min-h-[36px]"
+                title="إعادة بدء الجلسة الحالية من أول جهة اتصال"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                <span>إعادة من الأول</span>
+              </button>
+            )}
+
             <button
+              type="button"
               onClick={onResetSession}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 rounded-lg transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 rounded-lg transition cursor-pointer min-h-[36px] border border-red-200 dark:border-red-900/60"
+              title="إنهاء الجلسة بالكامل وإلغائها"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{t.sessions.resetSession}</span>
+              <XOctagon className="w-3.5 h-3.5" />
+              <span>إنهاء الجلسة</span>
             </button>
           </div>
         </div>

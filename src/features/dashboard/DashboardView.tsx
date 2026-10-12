@@ -19,6 +19,7 @@ interface DashboardViewProps {
   queue: QueueItem[];
   onOpenImport: () => void;
   onNavigateTab: (tab: string) => void;
+  onResetSession?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -27,6 +28,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   queue,
   onOpenImport,
   onNavigateTab,
+  onResetSession,
 }) => {
   const { t } = useSettings();
 
@@ -166,13 +168,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </p>
           </div>
 
-          <button
-            onClick={() => onNavigateTab('sessions')}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold bg-white text-emerald-800 hover:bg-emerald-50 transition cursor-pointer shadow-sm min-h-[44px]"
-          >
-            <span>Resume Session</span>
-            <ArrowUpRight className="w-4 h-4 rtl:rotate-90" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {onResetSession && (
+              <button
+                type="button"
+                onClick={onResetSession}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition cursor-pointer min-h-[44px] border border-white/20"
+                title="إنهاء الجلسة وإلغاؤها"
+              >
+                <span>إنهاء الجلسة</span>
+              </button>
+            )}
+            <button
+              onClick={() => onNavigateTab('sessions')}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-emerald-800 hover:bg-emerald-50 transition cursor-pointer shadow-sm min-h-[44px]"
+            >
+              <span>{t.sessions.resumeSession}</span>
+              <ArrowUpRight className="w-4 h-4 rtl:rotate-90" />
+            </button>
+          </div>
         </div>
       ) : totalContacts === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 text-center max-w-lg mx-auto shadow-xs">

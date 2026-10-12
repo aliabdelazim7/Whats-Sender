@@ -26,6 +26,8 @@ import {
   deleteTemplate,
   getLatestSession,
   saveSession,
+  deleteSession,
+  clearAllSessions,
   getQueueItems,
   saveQueueItems,
   updateQueueItem,
@@ -234,10 +236,49 @@ export function AppContent() {
     await saveSession(updatedSession);
   };
 
-  const handleResetSession = () => {
+  const handleResetSession = async () => {
+    if (!window.confirm('هل أنت متأكد من رغبتك في إنهاء جلسة المراسلة الحالية؟')) {
+      return;
+    }
+
+    try {
+      if (session) {
+        await deleteSession(session.id);
+      } else {
+        await clearAllSessions();
+      }
+    } catch (e) {
+      console.error('Failed to delete session from IndexedDB:', e);
+    }
+
     setSession(null);
     setQueue([]);
-    setCurrentTab('dashboard');
+    setCurrentTab('composer');
+  };
+
+  const handleRestartSession = async () => {
+    if (!session || queue.length === 0) return;
+    if (!window.confirm('هل تريد إعادة بدء الجلسة الحالية من أول رقم؟')) {
+      return;
+    }
+
+    const resetQueue: QueueItem[] = queue.map((q) => ({
+      ...q,
+      status: 'pending',
+      attemptCount: 0,
+      skipReason: undefined,
+    }));
+    const resetSession: CampaignSession = {
+      ...session,
+      currentIndex: 0,
+      status: 'running',
+      updatedAt: Date.now(),
+    };
+
+    setSession(resetSession);
+    setQueue(resetQueue);
+    await saveSession(resetSession);
+    await saveQueueItems(resetQueue);
   };
 
   const handleClearAllLocalData = async () => {
@@ -272,6 +313,7 @@ export function AppContent() {
             queue={queue}
             onOpenImport={() => setIsImportOpen(true)}
             onNavigateTab={setCurrentTab}
+            onResetSession={handleResetSession}
           />
         )}
 
@@ -303,6 +345,8 @@ export function AppContent() {
             onUpdateQueueItem={handleUpdateQueueItem}
             onUpdateSession={handleUpdateSession}
             onResetSession={handleResetSession}
+            onRestartSession={handleRestartSession}
+            onNavigateTab={setCurrentTab}
           />
         )}
 
