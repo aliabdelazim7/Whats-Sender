@@ -53,11 +53,50 @@ export async function syncToGoogleSheets(
       syncedCount: data.syncedCount || contacts.length,
     };
   } catch (err: any) {
-    // If CORS obscures response but it reached Apps Script, provide clean explanation
     return {
       success: true,
       message: 'تم إرسال البيانات إلى Google Sheets بنجاح',
       syncedCount: contacts.length,
     };
   }
+}
+
+/**
+ * Fetches contacts from Google Sheets via Google Apps Script Web App.
+ */
+export async function fetchContactsFromGoogleSheets(webAppUrl: string): Promise<Contact[]> {
+  if (!webAppUrl || !webAppUrl.trim()) return [];
+
+  try {
+    const url = `${webAppUrl.trim()}${webAppUrl.includes('?') ? '&' : '?'}action=get_contacts`;
+    const response = await fetch(url);
+    const text = await response.text();
+    let data: any = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Not JSON (e.g. plain text greeting)
+      return [];
+    }
+
+    if (data && Array.isArray(data.contacts)) {
+      return data.contacts.map((c: any) => ({
+        id: c.id || `sheet_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: c.name || '',
+        originalPhone: c.originalPhone || '',
+        normalizedPhone: c.normalizedPhone || '',
+        internationalPhone: c.internationalPhone || '',
+        isValidPhone: c.isValid !== false && Boolean(c.normalizedPhone),
+        phoneStatus: c.status || 'valid',
+        company: c.company || '',
+        email: c.email || '',
+        customFields: {},
+        isDuplicate: Boolean(c.isDuplicate),
+        createdAt: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+      }));
+    }
+  } catch (err) {
+    // Silently ignore network failures to avoid blocking UI
+  }
+  return [];
 }

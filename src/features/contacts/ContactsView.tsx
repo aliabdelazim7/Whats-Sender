@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Trash2, CheckCircle2, XCircle, Copy, AlertCircle, UserCheck, CloudUpload } from 'lucide-react';
+import { Search, Trash2, CheckCircle2, XCircle, Copy, AlertCircle, UserCheck, CloudUpload, RefreshCw } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { Contact } from '../../types';
 import { syncToGoogleSheets } from '../../lib/sheets';
@@ -10,6 +10,7 @@ interface ContactsViewProps {
   onClearAll: () => void;
   onOpenImport: () => void;
   onToggleExclude: (id: string) => void;
+  onSyncFromSheets?: () => Promise<void>;
 }
 
 export const ContactsView: React.FC<ContactsViewProps> = ({
@@ -18,6 +19,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
   onClearAll,
   onOpenImport,
   onToggleExclude,
+  onSyncFromSheets,
 }) => {
   const { settings, t } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +87,30 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onSyncFromSheets && (
+            <button
+              disabled={isSyncing}
+              onClick={async () => {
+                setIsSyncing(true);
+                setSyncStatus(null);
+                try {
+                  await onSyncFromSheets();
+                  setSyncStatus('تم جلب الأرقام والبيانات من Google Sheets بنجاح!');
+                  setTimeout(() => setSyncStatus(null), 5000);
+                } catch (e: any) {
+                  alert(e.message || 'فشل جلب البيانات من Google Sheets');
+                } finally {
+                  setIsSyncing(false);
+                }
+              }}
+              title="جلب وتحديث الأرقام المحفوظة في Google Sheets"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 rounded-lg transition cursor-pointer border border-blue-200 dark:border-blue-800 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>جلب من Sheets</span>
+            </button>
+          )}
+
           {contacts.length > 0 && (
             <button
               disabled={isSyncing}
@@ -92,7 +118,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               title="مزامنة وحفظ الأرقام في Google Sheets عبر Apps Script"
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 rounded-lg transition cursor-pointer border border-emerald-200 dark:border-emerald-800 disabled:opacity-50"
             >
-              <CloudUpload className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+              <CloudUpload className="w-3.5 h-3.5 text-emerald-600" />
               <span>{isSyncing ? 'جاري الحفظ...' : 'حفظ في Google Sheets'}</span>
             </button>
           )}

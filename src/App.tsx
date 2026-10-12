@@ -32,6 +32,8 @@ import {
   clearAllData,
 } from './lib/storage';
 import { renderTemplate } from './lib/template';
+import { getSettings } from './lib/storage';
+import { fetchContactsFromGoogleSheets, syncToGoogleSheets } from './lib/sheets';
 
 export function AppContent() {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -60,6 +62,19 @@ export function AppContent() {
           const queueItems = await getQueueItems(latestSession.id);
           setQueue(queueItems);
         }
+
+        // If local storage is empty, auto-fetch from Google Sheets in background
+        const settings = getSettings();
+        if (storedContacts.length === 0 && settings.googleAppsScriptUrl) {
+          fetchContactsFromGoogleSheets(settings.googleAppsScriptUrl)
+            .then(async (remoteContacts) => {
+              if (remoteContacts && remoteContacts.length > 0) {
+                setContacts(remoteContacts);
+                await saveContacts(remoteContacts);
+              }
+            })
+            .catch(() => {});
+        }
       } catch (err) {
         console.error('Failed to load initial data from IndexedDB:', err);
       } finally {
@@ -74,6 +89,28 @@ export function AppContent() {
     const updated = [...contacts, ...newContacts];
     setContacts(updated);
     await saveContacts(newContacts);
+
+    // Auto-backup to Google Sheets in background
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      syncToGoogleSheets(settings.googleAppsScriptUrl, newContacts).catch((err) =>
+        console.warn('Background auto-backup to Google Sheets failed:', err)
+      );
+    }
+  };
+
+  const handleSyncFromSheets = async () => {
+    const settings = getSettings();
+    if (!settings.googleAppsScriptUrl) {
+      throw new Error('يرجى تحديد رابط Google Apps Script في الإعدادات أولاً');
+    }
+    const remoteContacts = await fetchContactsFromGoogleSheets(settings.googleAppsScriptUrl);
+    if (!remoteContacts || remoteContacts.length === 0) {
+      throw new Error('لم يتم العثور على أرقام أو بيانات في Google Sheet حتى الآن');
+    }
+    setContacts(remoteContacts);
+    await clearAllContacts();
+    await saveContacts(remoteContacts);
   };
 
   const handleDeleteContact = async (id: string) => {
@@ -209,6 +246,7 @@ export function AppContent() {
             onClearAll={handleClearAllContacts}
             onOpenImport={() => setIsImportOpen(true)}
             onToggleExclude={handleToggleExcludeContact}
+            onSyncFromSheets={handleSyncFromSheets}
           />
         )}
 
