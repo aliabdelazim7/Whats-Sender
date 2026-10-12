@@ -175,6 +175,8 @@ export const defaultSettings: AppSettings = {
   defaultCountry: 'EG',
   mockMode: false,
   maskPhoneInReports: true,
+  googleAppsScriptUrl:
+    'https://script.google.com/macros/s/AKfycbyhKMkH38eqxyapd0l08BodPcmz9yUQBV2VbAHgnRLetGFItZrFgFfh5JeBwbq7XH-O/exec',
 };
 
 export function getSettings(): AppSettings {
