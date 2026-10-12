@@ -81,21 +81,40 @@ export async function fetchContactsFromGoogleSheets(webAppUrl: string): Promise<
     }
 
     if (data && Array.isArray(data.contacts)) {
-      return data.contacts.map((c: any) => ({
-        id: c.id || `sheet_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        name: c.name || '',
-        originalPhone: c.originalPhone || '',
-        normalizedPhone: c.normalizedPhone || '',
-        internationalPhone: c.internationalPhone || '',
-        isValidPhone: c.isValid !== false && Boolean(c.normalizedPhone),
-        phoneStatus: c.status || 'valid',
-        company: c.company || '',
-        email: c.email || '',
-        customFields: {},
-        isDuplicate: Boolean(c.isDuplicate),
-        messagingStatus: c.messagingStatus === 'sent' ? 'sent' : 'unsent',
-        createdAt: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
-      }));
+      const uniqueMap = new Map<string, Contact>();
+
+      data.contacts.forEach((c: any) => {
+        const phoneKey = c.normalizedPhone || c.originalPhone;
+        if (!phoneKey) return;
+
+        const contactObj: Contact = {
+          id: c.id || `sheet_${phoneKey}`,
+          name: c.name || '',
+          originalPhone: c.originalPhone || '',
+          normalizedPhone: c.normalizedPhone || '',
+          internationalPhone: c.internationalPhone || '',
+          isValidPhone: c.isValid !== false && Boolean(c.normalizedPhone),
+          phoneStatus: c.status || 'valid',
+          company: c.company || '',
+          email: c.email || '',
+          customFields: {},
+          isDuplicate: false,
+          messagingStatus: c.messagingStatus === 'sent' ? 'sent' : 'unsent',
+          createdAt: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+        };
+
+        // If duplicate exists, preserve 'sent' status if already sent
+        if (uniqueMap.has(phoneKey)) {
+          const existing = uniqueMap.get(phoneKey)!;
+          if (contactObj.messagingStatus === 'sent' || existing.messagingStatus === 'sent') {
+            contactObj.messagingStatus = 'sent';
+          }
+        }
+
+        uniqueMap.set(phoneKey, contactObj);
+      });
+
+      return Array.from(uniqueMap.values());
     }
   } catch (err) {
     // Silently ignore network failures to avoid blocking UI
