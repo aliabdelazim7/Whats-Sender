@@ -2,6 +2,13 @@
 
 :root {
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  -webkit-font-smoothing: antialiased;
 }
 
 [dir="rtl"] {
@@ -12,4 +19,9 @@
 [dir="ltr"] {
   direction: ltr;
   text-align: left;
+}
+
+/* Mobile safe area helpers */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
 }

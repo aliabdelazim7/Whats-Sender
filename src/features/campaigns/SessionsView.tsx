@@ -29,12 +29,13 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   const { settings, t } = useSettings();
   const [popupBlocked, setPopupBlocked] = useState(false);
   const [lastOpenedUrl, setLastOpenedUrl] = useState<string | null>(null);
+  const [showQueueOnMobile, setShowQueueOnMobile] = useState(false);
 
   if (!session || queue.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center max-w-lg mx-auto shadow-xs">
-        <Clock className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-12 text-center max-w-lg mx-auto shadow-xs">
+        <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-2">
           {t.sessions.noActiveSession}
         </h3>
         <p className="text-xs text-slate-500 mb-6 leading-relaxed">{t.sessions.subtitle}</p>
@@ -281,10 +282,10 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
             </div>
 
             {/* Step-by-Step Action Controls */}
-            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
               <button
                 onClick={handleOpenChat}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition cursor-pointer text-sm"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 sm:py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition cursor-pointer text-sm min-h-[48px]"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span>{t.sessions.openNext}</span>
@@ -292,7 +293,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
 
               <button
                 onClick={handleConfirmSent}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition cursor-pointer text-sm"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 sm:py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition cursor-pointer text-sm min-h-[48px]"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{t.sessions.confirmSent}</span>
@@ -300,7 +301,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
 
               <button
                 onClick={() => handleSkip()}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer text-xs"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer text-xs min-h-[44px]"
               >
                 <SkipForward className="w-4 h-4" />
                 <span>{t.sessions.skipContact}</span>
@@ -312,11 +313,20 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
         {/* Queue Navigation List (1 Col) */}
         <div className="space-y-3">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-              Session Queue ({queue.length})
-            </h4>
+            <button
+              type="button"
+              onClick={() => setShowQueueOnMobile((prev) => !prev)}
+              className="w-full flex items-center justify-between text-left rtl:text-right lg:cursor-default"
+            >
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Session Queue ({queue.length})
+              </h4>
+              <span className="lg:hidden text-xs font-semibold text-emerald-600">
+                {showQueueOnMobile ? 'إخفاء القائمة ▲' : 'عرض القائمة ▼'}
+              </span>
+            </button>
 
-            <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+            <div className={`mt-3 space-y-2 max-h-[460px] overflow-y-auto pr-1 ${showQueueOnMobile ? 'block' : 'hidden lg:block'}`}>
               {queue.map((item, idx) => {
                 const isSelected = idx === currentIndex;
                 return (

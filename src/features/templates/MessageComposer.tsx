@@ -37,6 +37,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   );
   const [recipientFilter, setRecipientFilter] = useState<'unsent' | 'all' | 'sent'>('unsent');
   const [selectedRecipientIndex, setSelectedRecipientIndex] = useState(0);
+  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor');
 
   // Filter contacts eligible for preview based on user selection (unsent / all / sent)
   const validContacts = useMemo(() => {
@@ -85,31 +86,31 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.composer.title}</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">{t.composer.title}</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {t.composer.variablesHelp} {allAvailablePlaceholders.map((v) => `{{${v}}}`).join(', ')}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           {/* Recipient Filter Tabs */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
+          <div className="grid grid-cols-3 sm:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
             <button
               onClick={() => {
                 setRecipientFilter('unsent');
                 setSelectedRecipientIndex(0);
               }}
-              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+              className={`px-2.5 py-2 sm:py-1.5 rounded-lg font-medium transition cursor-pointer text-center truncate ${
                 recipientFilter === 'unsent'
                   ? 'bg-emerald-600 text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
-              لم يتم الإرسال ({contacts.filter((c) => c.isValidPhone && c.messagingStatus !== 'sent').length})
+              لم يُرسل ({contacts.filter((c) => c.isValidPhone && c.messagingStatus !== 'sent').length})
             </button>
 
             <button
@@ -117,7 +118,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 setRecipientFilter('all');
                 setSelectedRecipientIndex(0);
               }}
-              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+              className={`px-2.5 py-2 sm:py-1.5 rounded-lg font-medium transition cursor-pointer text-center truncate ${
                 recipientFilter === 'all'
                   ? 'bg-emerald-600 text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -131,7 +132,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 setRecipientFilter('sent');
                 setSelectedRecipientIndex(0);
               }}
-              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+              className={`px-2.5 py-2 sm:py-1.5 rounded-lg font-medium transition cursor-pointer text-center truncate ${
                 recipientFilter === 'sent'
                   ? 'bg-blue-600 text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -144,17 +145,43 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           {validContacts.length > 0 && (
             <button
               onClick={() => onStartSessionWithTemplate(content)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer min-h-[44px]"
             >
-              <span>{t.dashboard.startSession} ({validContacts.length} recipients)</span>
+              <span>{t.dashboard.startSession} ({validContacts.length})</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Mobile Tab Switcher (Visible on < lg) */}
+      <div className="lg:hidden flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
+        <button
+          type="button"
+          onClick={() => setMobileTab('editor')}
+          className={`flex-1 py-2.5 rounded-lg transition cursor-pointer text-center min-h-[40px] ${
+            mobileTab === 'editor'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+          }`}
+        >
+          ✏️ {t.composer.contentLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('preview')}
+          className={`flex-1 py-2.5 rounded-lg transition cursor-pointer text-center min-h-[40px] ${
+            mobileTab === 'preview'
+              ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+          }`}
+        >
+          👁️ {t.composer.previewTitle}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Left: Editor & Template Management */}
-        <div className="space-y-4">
+        <div className={`space-y-4 ${mobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
             {/* Template Title */}
             <div>
@@ -261,7 +288,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
 
         {/* Right: Live Preview & WhatsApp link test */}
-        <div className="space-y-4">
+        <div className={`space-y-4 ${mobileTab === 'preview' ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">

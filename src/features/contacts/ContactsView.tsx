@@ -88,7 +88,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
           {onSyncFromSheets && (
             <button
               disabled={isSyncing}
@@ -106,7 +106,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                 }
               }}
               title="جلب وتحديث الأرقام المحفوظة في Google Sheets"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 rounded-lg transition cursor-pointer border border-blue-200 dark:border-blue-800 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 rounded-xl transition cursor-pointer border border-blue-200 dark:border-blue-800 disabled:opacity-50 min-h-[44px]"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
               <span>جلب من Sheets</span>
@@ -118,10 +118,10 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               disabled={isSyncing}
               onClick={handleSyncToSheets}
               title="مزامنة وحفظ الأرقام في Google Sheets عبر Apps Script"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 rounded-lg transition cursor-pointer border border-emerald-200 dark:border-emerald-800 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 rounded-xl transition cursor-pointer border border-emerald-200 dark:border-emerald-800 disabled:opacity-50 min-h-[44px]"
             >
               <CloudUpload className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isSyncing ? 'جاري الحفظ...' : 'حفظ في Google Sheets'}</span>
+              <span>{isSyncing ? 'جاري الحفظ...' : 'حفظ في Sheets'}</span>
             </button>
           )}
 
@@ -132,7 +132,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                   onClearAll();
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 rounded-lg transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 rounded-xl transition cursor-pointer min-h-[44px]"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t.contacts.clearAll}</span>
@@ -141,7 +141,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
 
           <button
             onClick={onOpenImport}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer min-h-[44px]"
           >
             <span>+ {t.dashboard.importNew}</span>
           </button>
@@ -260,9 +260,10 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
         </div>
       </div>
 
-      {/* Contacts Table */}
+      {/* Contacts Table & Mobile Card List */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View (Hidden on mobile < sm) */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-xs text-left rtl:text-right text-slate-600 dark:text-slate-300">
             <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
               <tr>
@@ -349,7 +350,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                           <button
                             onClick={() => onToggleExclude(contact.id)}
                             title={contact.excludedFromSession ? 'Include in session' : 'Exclude from session'}
-                            className={`p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer ${
+                            className={`p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center ${
                               contact.excludedFromSession ? 'text-amber-500' : 'text-slate-400'
                             }`}
                           >
@@ -358,7 +359,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                           <button
                             onClick={() => onDeleteContact(contact.id)}
                             title={t.contacts.delete}
-                            className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 cursor-pointer"
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -370,6 +371,110 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card List View (Visible on mobile < sm) */}
+        <div className="sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {paginatedContacts.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              {t.contacts.noContacts}
+            </div>
+          ) : (
+            paginatedContacts.map((contact, index) => {
+              const itemNumber = (page - 1) * pageSize + index + 1;
+              return (
+                <div
+                  key={contact.id}
+                  className={`p-3.5 space-y-2.5 transition ${
+                    contact.excludedFromSession ? 'opacity-50 bg-slate-50/50 dark:bg-slate-900/50' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                        #{itemNumber}
+                      </span>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {contact.name || 'بدون اسم / Unnamed'}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {contact.messagingStatus === 'sent' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                          تم الإرسال
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          لم يُرسل
+                        </span>
+                      )}
+
+                      {contact.isValidPhone ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                          صالح
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400">
+                          غير صالح
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Phone & Company */}
+                  <div className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl">
+                    <div className="min-w-0">
+                      <p className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                        {contact.isValidPhone
+                          ? (contact.internationalPhone || contact.normalizedPhone)
+                          : contact.originalPhone}
+                      </p>
+                      {contact.company && (
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {contact.company}
+                        </p>
+                      )}
+                    </div>
+
+                    {contact.isValidPhone && (
+                      <a
+                        href={`https://wa.me/${(contact.normalizedPhone || '').replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition flex items-center gap-1 shrink-0 min-h-[36px]"
+                      >
+                        واتساب
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => onToggleExclude(contact.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer min-h-[40px] ${
+                        contact.excludedFromSession
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>{contact.excludedFromSession ? 'تضمين' : 'استبعاد'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => onDeleteContact(contact.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 transition cursor-pointer min-h-[40px]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t.contacts.delete}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination controls */}

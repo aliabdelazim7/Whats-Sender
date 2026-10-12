@@ -28,7 +28,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClearAllLocalData 
         </p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xs space-y-6">
         {/* Language & Theme Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
           <div>
@@ -39,7 +39,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClearAllLocalData 
             <div className="flex gap-2">
               <button
                 onClick={() => updateSettings({ language: 'ar' })}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
                   settings.language === 'ar'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -49,7 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClearAllLocalData 
               </button>
               <button
                 onClick={() => updateSettings({ language: 'en' })}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
                   settings.language === 'en'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -68,7 +68,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClearAllLocalData 
             <div className="flex gap-2">
               <button
                 onClick={() => updateSettings({ theme: 'light' })}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
                   settings.theme === 'light'
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -78,7 +78,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClearAllLocalData 
               </button>
               <button
                 onClick={() => updateSettings({ theme: 'dark' })}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer min-h-[44px] ${
                   settings.theme === 'dark'
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'

@@ -35,9 +35,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ queue }) => {
         <p className="text-xs text-slate-500 mt-0.5">{t.reports.description}</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6 max-w-2xl">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-6 max-w-2xl">
         {/* Privacy Mask Option */}
-        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/60">
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700/60">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -61,11 +61,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ queue }) => {
         </div>
 
         {/* Export Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
           <button
             disabled={queue.length === 0}
             onClick={handleExportCsv}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs shadow-sm"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs shadow-sm min-h-[44px]"
           >
             <FileText className="w-4 h-4" />
             <span>{t.reports.exportCsv}</span>
@@ -74,7 +74,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ queue }) => {
           <button
             disabled={queue.length === 0}
             onClick={handleExportXlsx}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs shadow-sm"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs shadow-sm min-h-[44px]"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>{t.reports.exportXlsx}</span>
