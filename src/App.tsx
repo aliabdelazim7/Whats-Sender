@@ -191,6 +191,23 @@ export function AppContent() {
     const updatedQueue = queue.map((q) => (q.id === item.id ? item : q));
     setQueue(updatedQueue);
     await updateQueueItem(item);
+
+    // Synchronize contact's messagingStatus
+    if (item.status === 'confirmed_sent' || item.status === 'skipped') {
+      const targetContact = contacts.find((c) => c.id === item.contactId);
+      if (targetContact) {
+        const updatedContact: Contact = {
+          ...targetContact,
+          messagingStatus: item.status === 'confirmed_sent' ? 'sent' : 'skipped',
+          sentAt: item.status === 'confirmed_sent' ? Date.now() : targetContact.sentAt,
+        };
+        const newContactsList = contacts.map((c) =>
+          c.id === item.contactId ? updatedContact : c
+        );
+        setContacts(newContactsList);
+        await saveContacts([updatedContact]);
+      }
+    }
   };
 
   const handleUpdateSession = async (updatedSession: CampaignSession) => {

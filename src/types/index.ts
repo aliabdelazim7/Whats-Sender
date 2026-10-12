@@ -16,6 +16,8 @@ export interface Contact {
   isDuplicate?: boolean;
   duplicateOfId?: string;
   excludedFromSession?: boolean;
+  messagingStatus?: 'unsent' | 'sent' | 'skipped';
+  sentAt?: number;
   createdAt: number;
 }
 

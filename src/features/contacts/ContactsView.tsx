@@ -23,7 +23,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
 }) => {
   const { settings, t } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'valid' | 'invalid' | 'duplicates'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'valid' | 'invalid' | 'duplicates' | 'unsent' | 'sent'>('all');
   const [page, setPage] = useState(1);
   const pageSize = 50;
 
@@ -33,6 +33,8 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
       if (filterType === 'valid' && !c.isValidPhone) return false;
       if (filterType === 'invalid' && c.isValidPhone) return false;
       if (filterType === 'duplicates' && !c.isDuplicate) return false;
+      if (filterType === 'unsent' && c.messagingStatus === 'sent') return false;
+      if (filterType === 'sent' && c.messagingStatus !== 'sent') return false;
 
       // Search query
       if (!searchTerm) return true;
@@ -227,6 +229,34 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
           >
             {t.contacts.filterDuplicates} ({contacts.filter((c) => c.isDuplicate).length})
           </button>
+
+          <button
+            onClick={() => {
+              setFilterType('unsent');
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+              filterType === 'unsent'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            لم يُرسل ({contacts.filter((c) => c.messagingStatus !== 'sent').length})
+          </button>
+
+          <button
+            onClick={() => {
+              setFilterType('sent');
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+              filterType === 'sent'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            تم الإرسال ({contacts.filter((c) => c.messagingStatus === 'sent').length})
+          </button>
         </div>
       </div>
 
@@ -293,6 +323,16 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                             >
                               <XCircle className="w-3 h-3" />
                               {contact.phoneStatus}
+                            </span>
+                          )}
+
+                          {contact.messagingStatus === 'sent' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                              تم الإرسال
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                              لم يُرسل
                             </span>
                           )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Save,
   Trash2,
@@ -37,10 +37,19 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const [content, setContent] = useState(
     'مرحباً {{name}}،\n\nنود إعلامكم بتحديث مهم بخصوص طلبكم لدى {{company}}.\nهل ترغب في موافاتك بالتفاصيل؟'
   );
+  const [recipientFilter, setRecipientFilter] = useState<'unsent' | 'all' | 'sent'>('unsent');
   const [selectedRecipientIndex, setSelectedRecipientIndex] = useState(0);
 
-  // Filter contacts eligible for preview (has valid phone)
-  const validContacts = contacts.filter((c) => c.isValidPhone && !c.excludedFromSession);
+  // Filter contacts eligible for preview based on user selection (unsent / all / sent)
+  const validContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      if (!c.isValidPhone || c.excludedFromSession) return false;
+      if (recipientFilter === 'unsent') return c.messagingStatus !== 'sent';
+      if (recipientFilter === 'sent') return c.messagingStatus === 'sent';
+      return true; // 'all'
+    });
+  }, [contacts, recipientFilter]);
+
   const currentRecipient = validContacts[selectedRecipientIndex] || validContacts[0];
 
   const renderResult = currentRecipient
@@ -90,14 +99,61 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           </p>
         </div>
 
-        {validContacts.length > 0 && (
-          <button
-            onClick={() => onStartSessionWithTemplate(content)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition cursor-pointer"
-          >
-            <span>{t.dashboard.startSession} ({validContacts.length} recipients)</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Recipient Filter Tabs */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
+            <button
+              onClick={() => {
+                setRecipientFilter('unsent');
+                setSelectedRecipientIndex(0);
+              }}
+              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                recipientFilter === 'unsent'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              لم يتم الإرسال ({contacts.filter((c) => c.isValidPhone && c.messagingStatus !== 'sent').length})
+            </button>
+
+            <button
+              onClick={() => {
+                setRecipientFilter('all');
+                setSelectedRecipientIndex(0);
+              }}
+              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                recipientFilter === 'all'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              الكل ({contacts.filter((c) => c.isValidPhone).length})
+            </button>
+
+            <button
+              onClick={() => {
+                setRecipientFilter('sent');
+                setSelectedRecipientIndex(0);
+              }}
+              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                recipientFilter === 'sent'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              تم الإرسال ({contacts.filter((c) => c.isValidPhone && c.messagingStatus === 'sent').length})
+            </button>
+          </div>
+
+          {validContacts.length > 0 && (
+            <button
+              onClick={() => onStartSessionWithTemplate(content)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition cursor-pointer"
+            >
+              <span>{t.dashboard.startSession} ({validContacts.length} recipients)</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
