@@ -73,4 +73,64 @@ describe('End-to-End Business Logic & Queue State Machine Test', () => {
     expect(remainingToMessage.length).toBe(1);
     expect(remainingToMessage[0].name).toBe('عميل مصري');
   });
+
+  it('handles session restart: resets all queue items to pending and index to 0', () => {
+    const queue: QueueItem[] = [
+      {
+        id: 'q1',
+        sessionId: 's1',
+        contactId: 'c1',
+        contactName: 'علي',
+        contactPhone: '966501112233',
+        renderedMessage: 'رسالة 1',
+        status: 'confirmed_sent',
+        attemptCount: 1,
+      },
+      {
+        id: 'q2',
+        sessionId: 's1',
+        contactId: 'c2',
+        contactName: 'سارة',
+        contactPhone: '966502223344',
+        renderedMessage: 'رسالة 2',
+        status: 'skipped',
+        attemptCount: 1,
+        skipReason: 'User skipped',
+      },
+    ];
+
+    const resetQueue = queue.map((q) => ({
+      ...q,
+      status: 'pending' as const,
+      attemptCount: 0,
+      skipReason: undefined,
+    }));
+
+    expect(resetQueue[0].status).toBe('pending');
+    expect(resetQueue[0].attemptCount).toBe(0);
+    expect(resetQueue[1].status).toBe('pending');
+    expect(resetQueue[1].skipReason).toBeUndefined();
+  });
+
+  it('filters contacts strictly based on target filter mode (unsent vs sent vs all)', () => {
+    const contacts = [
+      { id: '1', name: 'أحمد', isValidPhone: true, excludedFromSession: false, messagingStatus: 'sent' as const },
+      { id: '2', name: 'خالد', isValidPhone: true, excludedFromSession: false, messagingStatus: 'unsent' as const },
+      { id: '3', name: 'منى', isValidPhone: true, excludedFromSession: true, messagingStatus: 'unsent' as const }, // excluded
+      { id: '4', name: 'خطأ', isValidPhone: false, excludedFromSession: false, messagingStatus: 'unsent' as const }, // invalid phone
+    ];
+
+    const filterForSession = (mode: 'unsent' | 'all' | 'sent') => {
+      return contacts.filter((c) => {
+        if (!c.isValidPhone || c.excludedFromSession) return false;
+        if (mode === 'sent') return c.messagingStatus === 'sent';
+        if (mode === 'all') return true;
+        return c.messagingStatus !== 'sent';
+      });
+    };
+
+    expect(filterForSession('unsent').map((c) => c.name)).toEqual(['خالد']);
+    expect(filterForSession('sent').map((c) => c.name)).toEqual(['أحمد']);
+    expect(filterForSession('all').map((c) => c.name)).toEqual(['أحمد', 'خالد']);
+  });
 });
