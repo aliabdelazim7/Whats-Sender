@@ -133,4 +133,44 @@ describe('End-to-End Business Logic & Queue State Machine Test', () => {
     expect(filterForSession('sent').map((c) => c.name)).toEqual(['أحمد']);
     expect(filterForSession('all').map((c) => c.name)).toEqual(['أحمد', 'خالد']);
   });
+
+  it('filters contacts by multi-criteria segment: category, country, and messaging status', () => {
+    const contacts = [
+      { id: '1', name: 'عيادة الرياض', category: 'عيادات', countryCode: 'SA', isValidPhone: true, messagingStatus: 'unsent' as const },
+      { id: '2', name: 'عيادة القاهرة', category: 'عيادات', countryCode: 'EG', isValidPhone: true, messagingStatus: 'unsent' as const },
+      { id: '3', name: 'عيادة جدة تم إرسالها', category: 'عيادات', countryCode: 'SA', isValidPhone: true, messagingStatus: 'sent' as const },
+      { id: '4', name: 'محل ملابس الرياض', category: 'ملابس وأحذية', countryCode: 'SA', isValidPhone: true, messagingStatus: 'unsent' as const },
+      { id: '5', name: 'محل ملابس دبي', category: 'ملابس وأحذية', countryCode: 'AE', isValidPhone: true, messagingStatus: 'sent' as const },
+    ];
+
+    const matchSegment = (cat: string, country: string, status: 'unsent' | 'sent' | 'all') => {
+      return contacts.filter((c) => {
+        if (!c.isValidPhone) return false;
+        if (cat !== 'all' && c.category !== cat) return false;
+        if (country !== 'all' && c.countryCode !== country) return false;
+        if (status === 'unsent' && c.messagingStatus === 'sent') return false;
+        if (status === 'sent' && c.messagingStatus !== 'sent') return false;
+        return true;
+      });
+    };
+
+    // 1. Target: "عيادات في السعودية لسه مبعتش ليها"
+    const saudiUnsentClinics = matchSegment('عيادات', 'SA', 'unsent');
+    expect(saudiUnsentClinics.length).toBe(1);
+    expect(saudiUnsentClinics[0].name).toBe('عيادة الرياض');
+
+    // 2. Target: "عيادات في السعودية أرسلت لها للمتابعة"
+    const saudiSentClinics = matchSegment('عيادات', 'SA', 'sent');
+    expect(saudiSentClinics.length).toBe(1);
+    expect(saudiSentClinics[0].name).toBe('عيادة جدة تم إرسالها');
+
+    // 3. Target: "ملابس وأحذية في الإمارات تم الإرسال"
+    const uaeSentClothing = matchSegment('ملابس وأحذية', 'AE', 'sent');
+    expect(uaeSentClothing.length).toBe(1);
+    expect(uaeSentClothing[0].name).toBe('محل ملابس دبي');
+
+    // 4. Target: "جميع الأرقام في السعودية"
+    const allSaudi = matchSegment('all', 'SA', 'all');
+    expect(allSaudi.length).toBe(3);
+  });
 });

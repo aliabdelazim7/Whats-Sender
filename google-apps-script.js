@@ -68,6 +68,7 @@ var HEADERS = [
   'International Phone',
   'Company',
   'Email',
+  'Category',
   'Is Valid',
   'Status',
   'Is Duplicate',
@@ -123,6 +124,7 @@ function handleReplaceAllContacts(contacts) {
         "'" + String(c.internationalPhone || ''),
         c.company || '',
         c.email || '',
+        c.category || 'عام',
         c.isValid === true ? 'TRUE' : 'FALSE',
         c.status || 'valid',
         c.isDuplicate === true ? 'TRUE' : 'FALSE',
@@ -203,6 +205,7 @@ function handleSyncContacts(contacts) {
       "'" + String(c.internationalPhone || ''),
       c.company || '',
       c.email || '',
+      c.category || 'عام',
       c.isValid === true ? 'TRUE' : 'FALSE',
       c.status || 'valid',
       c.isDuplicate === true ? 'TRUE' : 'FALSE',
@@ -250,11 +253,12 @@ function handleGetContacts() {
       internationalPhone: String(row[4] || '').replace(/^'/, ''),
       company: String(row[5] || ''),
       email: String(row[6] || ''),
-      isValid: row[7] === 'TRUE' || row[7] === true,
-      status: String(row[8] || 'valid'),
-      isDuplicate: row[9] === 'TRUE' || row[9] === true,
-      messagingStatus: String(row[10] || 'unsent'),
-      createdAt: String(row[11] || '')
+      category: String(row[7] || 'عام'),
+      isValid: row[8] === 'TRUE' || row[8] === true,
+      status: String(row[9] || 'valid'),
+      isDuplicate: row[10] === 'TRUE' || row[10] === true,
+      messagingStatus: String(row[11] || 'unsent'),
+      createdAt: String(row[12] || '')
     });
   }
 

@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Trash2, CheckCircle2, XCircle, Copy, UserCheck, CloudUpload, RefreshCw } from 'lucide-react';
+import { Search, Trash2, CheckCircle2, XCircle, Copy, UserCheck, CloudUpload, RefreshCw, Tag, Globe } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { Contact } from '../../types';
 import { replaceAllGoogleSheetsContacts } from '../../lib/sheets';
+import { getCountryInfo } from '../../lib/phone';
 
 interface ContactsViewProps {
   contacts: Contact[];
@@ -11,6 +12,8 @@ interface ContactsViewProps {
   onOpenImport: () => void;
   onToggleExclude: (id: string) => void;
   onSyncFromSheets?: () => Promise<void>;
+  onUpdateContactCategory?: (contactId: string, newCategory: string) => void;
+  existingCategories?: string[];
 }
 
 export const ContactsView: React.FC<ContactsViewProps> = ({
@@ -20,12 +23,41 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
   onOpenImport,
   onToggleExclude,
   onSyncFromSheets,
+  onUpdateContactCategory,
+  existingCategories = ['عام', 'عيادات', 'ملابس وأحذية', 'مطاعم', 'عقارات', 'خدمات'],
 }) => {
   const { settings, t } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'valid' | 'invalid' | 'duplicates' | 'unsent' | 'sent'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const pageSize = 50;
+
+  // Extract all categories dynamically from contacts + existing
+  const allCategories = useMemo(() => {
+    const set = new Set<string>(existingCategories);
+    contacts.forEach((c) => {
+      if (c.category && c.category.trim()) set.add(c.category.trim());
+    });
+    return Array.from(set);
+  }, [contacts, existingCategories]);
+
+  // Extract countries dynamically
+  const allCountries = useMemo(() => {
+    const countryMap = new Map<string, number>();
+    contacts.forEach((c) => {
+      if (c.countryCode) {
+        const code = c.countryCode.toUpperCase();
+        countryMap.set(code, (countryMap.get(code) || 0) + 1);
+      }
+    });
+    return Array.from(countryMap.entries()).map(([code, count]) => ({
+      code,
+      count,
+      ...getCountryInfo(code),
+    }));
+  }, [contacts]);
 
   const filteredContacts = useMemo(() => {
     return contacts.filter((c) => {
@@ -36,6 +68,12 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
       if (filterType === 'unsent' && c.messagingStatus === 'sent') return false;
       if (filterType === 'sent' && c.messagingStatus !== 'sent') return false;
 
+      // Category filter
+      if (categoryFilter !== 'all' && (c.category || 'عام') !== categoryFilter) return false;
+
+      // Country filter
+      if (countryFilter !== 'all' && (c.countryCode || '').toUpperCase() !== countryFilter.toUpperCase()) return false;
+
       // Search query
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
@@ -43,10 +81,11 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
         c.name.toLowerCase().includes(q) ||
         c.originalPhone.toLowerCase().includes(q) ||
         c.normalizedPhone.toLowerCase().includes(q) ||
-        (c.company && c.company.toLowerCase().includes(q))
+        (c.company && c.company.toLowerCase().includes(q)) ||
+        (c.category && c.category.toLowerCase().includes(q))
       );
     });
-  }, [contacts, filterType, searchTerm]);
+  }, [contacts, filterType, categoryFilter, countryFilter, searchTerm]);
 
   const totalPages = Math.ceil(filteredContacts.length / pageSize) || 1;
   const paginatedContacts = filteredContacts.slice((page - 1) * pageSize, page * pageSize);
@@ -156,107 +195,174 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
       )}
 
       {/* Search & Filters Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute top-3 left-3 rtl:left-auto rtl:right-3 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
-            placeholder={t.contacts.searchPlaceholder}
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-3 rtl:pl-3 rtl:pr-9 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-hidden"
-          />
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xs">
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 absolute top-3 left-3 rtl:left-auto rtl:right-3 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              placeholder={t.contacts.searchPlaceholder}
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-3 rtl:pl-3 rtl:pr-9 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-hidden"
+            />
+          </div>
+
+          {/* Status Filters */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            <button
+              onClick={() => {
+                setFilterType('all');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+                filterType === 'all'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              {t.contacts.filterAll} ({contacts.length})
+            </button>
+
+            <button
+              onClick={() => {
+                setFilterType('valid');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+                filterType === 'valid'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              {t.contacts.filterValid} ({contacts.filter((c) => c.isValidPhone).length})
+            </button>
+
+            <button
+              onClick={() => {
+                setFilterType('invalid');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+                filterType === 'invalid'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              {t.contacts.filterInvalid} ({contacts.filter((c) => !c.isValidPhone).length})
+            </button>
+
+            <button
+              onClick={() => {
+                setFilterType('duplicates');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+                filterType === 'duplicates'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              {t.contacts.filterDuplicates} ({contacts.filter((c) => c.isDuplicate).length})
+            </button>
+
+            <button
+              onClick={() => {
+                setFilterType('unsent');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+                filterType === 'unsent'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              لم يُرسل ({contacts.filter((c) => c.messagingStatus !== 'sent').length})
+            </button>
+
+            <button
+              onClick={() => {
+                setFilterType('sent');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+                filterType === 'sent'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              تم الإرسال ({contacts.filter((c) => c.messagingStatus === 'sent').length})
+            </button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          <button
-            onClick={() => {
-              setFilterType('all');
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filterType === 'all'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            {t.contacts.filterAll} ({contacts.length})
-          </button>
+        {/* Segment Filters: Category & Country */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 w-full text-xs">
+          {/* Category Dropdown */}
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            <Tag className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-slate-500 text-[11px] font-medium">التصنيف:</span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-hidden cursor-pointer"
+            >
+              <option value="all">جميع التصنيفات ({contacts.length})</option>
+              {allCategories.map((cat) => {
+                const count = contacts.filter((c) => (c.category || 'عام') === cat).length;
+                return (
+                  <option key={cat} value={cat}>
+                    🏷️ {cat} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
 
-          <button
-            onClick={() => {
-              setFilterType('valid');
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filterType === 'valid'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            {t.contacts.filterValid} ({contacts.filter((c) => c.isValidPhone).length})
-          </button>
+          {/* Country Dropdown */}
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="text-slate-500 text-[11px] font-medium">الدولة:</span>
+            <select
+              value={countryFilter}
+              onChange={(e) => {
+                setCountryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-hidden cursor-pointer"
+            >
+              <option value="all">جميع الدول ({contacts.length})</option>
+              {allCountries.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.flag} {c.nameAr} ({c.count})
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <button
-            onClick={() => {
-              setFilterType('invalid');
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filterType === 'invalid'
-                ? 'bg-red-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            {t.contacts.filterInvalid} ({contacts.filter((c) => !c.isValidPhone).length})
-          </button>
+          {(categoryFilter !== 'all' || countryFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setCategoryFilter('all');
+                setCountryFilter('all');
+                setPage(1);
+              }}
+              className="px-2.5 py-1 text-[11px] font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 rounded-lg cursor-pointer transition"
+            >
+              إلغاء فلاتر التصنيف
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              setFilterType('duplicates');
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filterType === 'duplicates'
-                ? 'bg-amber-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            {t.contacts.filterDuplicates} ({contacts.filter((c) => c.isDuplicate).length})
-          </button>
-
-          <button
-            onClick={() => {
-              setFilterType('unsent');
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filterType === 'unsent'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            لم يُرسل ({contacts.filter((c) => c.messagingStatus !== 'sent').length})
-          </button>
-
-          <button
-            onClick={() => {
-              setFilterType('sent');
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filterType === 'sent'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            تم الإرسال ({contacts.filter((c) => c.messagingStatus === 'sent').length})
-          </button>
+          <span className="text-slate-400 text-[11px] mr-auto rtl:mr-0 rtl:ml-auto">
+            المطابق: <strong className="text-emerald-600">{filteredContacts.length}</strong> من {contacts.length}
+          </span>
         </div>
       </div>
 
@@ -269,6 +375,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               <tr>
                 <th className="p-3">#</th>
                 <th className="p-3">{t.contacts.name}</th>
+                <th className="p-3">التصنيف</th>
                 <th className="p-3">{t.contacts.phone}</th>
                 <th className="p-3">{t.contacts.original}</th>
                 <th className="p-3">{t.contacts.company}</th>
@@ -279,13 +386,14 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {paginatedContacts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-slate-400">
                     {t.contacts.noContacts}
                   </td>
                 </tr>
               ) : (
                 paginatedContacts.map((contact, index) => {
                   const itemNumber = (page - 1) * pageSize + index + 1;
+                  const countryInfo = getCountryInfo(contact.countryCode);
                   return (
                     <tr
                       key={contact.id}
@@ -297,16 +405,42 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                       <td className="p-3 font-medium text-slate-900 dark:text-white">
                         {contact.name || '—'}
                       </td>
-                      <td className="p-3 font-mono">
-                        {contact.isValidPhone ? (
-                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
-                            {contact.internationalPhone || contact.normalizedPhone}
-                          </span>
+                      <td className="p-3">
+                        {onUpdateContactCategory ? (
+                          <select
+                            value={contact.category || 'عام'}
+                            onChange={(e) => onUpdateContactCategory(contact.id, e.target.value)}
+                            className="text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-md px-1.5 py-0.5 outline-hidden cursor-pointer"
+                          >
+                            {allCategories.map((cat) => (
+                              <option key={cat} value={cat}>
+                                🏷️ {cat}
+                              </option>
+                            ))}
+                          </select>
                         ) : (
-                          <span className="text-red-500 line-through">
-                            {contact.originalPhone}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            🏷️ {contact.category || 'عام'}
                           </span>
                         )}
+                      </td>
+                      <td className="p-3 font-mono">
+                        <div className="flex items-center gap-1.5">
+                          {contact.countryCode && (
+                            <span title={countryInfo.nameAr} className="text-sm">
+                              {countryInfo.flag}
+                            </span>
+                          )}
+                          {contact.isValidPhone ? (
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                              {contact.internationalPhone || contact.normalizedPhone}
+                            </span>
+                          ) : (
+                            <span className="text-red-500 line-through">
+                              {contact.originalPhone}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 font-mono text-slate-400">{contact.originalPhone}</td>
                       <td className="p-3 text-slate-500">{contact.company || '—'}</td>
@@ -397,6 +531,14 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                       <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
                         {contact.name || 'بدون اسم / Unnamed'}
                       </h4>
+                      {contact.countryCode && (
+                        <span title={getCountryInfo(contact.countryCode).nameAr} className="text-xs shrink-0">
+                          {getCountryInfo(contact.countryCode).flag}
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                        🏷️ {contact.category || 'عام'}
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">

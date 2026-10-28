@@ -4,7 +4,8 @@ import { normalizePhoneNumber } from '../phone';
 export function buildContactsFromRows(
   rows: RawRowData[],
   mapping: ColumnMapping,
-  defaultCountry: string = 'EG'
+  defaultCountry: string = 'EG',
+  defaultCategory: string = 'عام'
 ): Contact[] {
   const seenPhones = new Map<string, string>(); // normalizedPhone -> firstContactId
   const contacts: Contact[] = [];
@@ -15,6 +16,9 @@ export function buildContactsFromRows(
     const rawName = mapping.nameColumn ? (row[mapping.nameColumn] ?? '') : '';
     const rawCompany = mapping.companyColumn ? (row[mapping.companyColumn] ?? '') : '';
     const rawEmail = mapping.emailColumn ? (row[mapping.emailColumn] ?? '') : '';
+    const rawCategory = mapping.categoryColumn && row[mapping.categoryColumn]
+      ? String(row[mapping.categoryColumn]).trim()
+      : defaultCategory;
 
     const customFields: Record<string, string> = {};
     for (const [varName, colName] of Object.entries(mapping.customColumns)) {
@@ -50,6 +54,7 @@ export function buildContactsFromRows(
       countryCode: norm.country,
       company: String(rawCompany).trim(),
       email: String(rawEmail).trim(),
+      category: rawCategory || defaultCategory,
       customFields,
       isDuplicate,
       duplicateOfId,

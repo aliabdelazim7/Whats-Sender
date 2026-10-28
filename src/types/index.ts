@@ -12,6 +12,7 @@ export interface Contact {
   countryCode?: string;
   company?: string;
   email?: string;
+  category?: string; // e.g. 'عيادات', 'ملابس وأحذية', etc.
   customFields: Record<string, string>;
   isDuplicate?: boolean;
   duplicateOfId?: string;
@@ -30,6 +31,7 @@ export interface ColumnMapping {
   phoneColumn: string;
   companyColumn?: string;
   emailColumn?: string;
+  categoryColumn?: string;
   customColumns: Record<string, string>; // customVarName -> spreadsheetColumnName
 }
 

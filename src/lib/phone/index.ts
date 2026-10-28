@@ -135,3 +135,30 @@ export function maskPhoneNumber(phone: string): string {
   const visibleSuffix = digits.slice(-2);
   return `+${visiblePrefix}******${visibleSuffix}`;
 }
+
+export const COUNTRY_NAMES: Record<string, { nameAr: string; nameEn: string; flag: string }> = {
+  SA: { nameAr: 'السعودية', nameEn: 'Saudi Arabia', flag: '🇸🇦' },
+  EG: { nameAr: 'مصر', nameEn: 'Egypt', flag: '🇪🇬' },
+  AE: { nameAr: 'الإمارات', nameEn: 'UAE', flag: '🇦🇪' },
+  KW: { nameAr: 'الكويت', nameEn: 'Kuwait', flag: '🇰🇼' },
+  QA: { nameAr: 'قطر', nameEn: 'Qatar', flag: '🇶🇦' },
+  OM: { nameAr: 'عمان', nameEn: 'Oman', flag: '🇴🇲' },
+  BH: { nameAr: 'البحرين', nameEn: 'Bahrain', flag: '🇧🇭' },
+  JO: { nameAr: 'الأردن', nameEn: 'Jordan', flag: '🇯🇴' },
+  IQ: { nameAr: 'العراق', nameEn: 'Iraq', flag: '🇮🇶' },
+  YE: { nameAr: 'اليمن', nameEn: 'Yemen', flag: '🇾🇪' },
+  LY: { nameAr: 'ليبيا', nameEn: 'Libya', flag: '🇱🇾' },
+  SD: { nameAr: 'السودان', nameEn: 'Sudan', flag: '🇸🇩' },
+  MA: { nameAr: 'المغرب', nameEn: 'Morocco', flag: '🇲🇦' },
+  DZ: { nameAr: 'الجزائر', nameEn: 'Algeria', flag: '🇩🇿' },
+  TN: { nameAr: 'تونس', nameEn: 'Tunisia', flag: '🇹🇳' },
+  US: { nameAr: 'أمريكا / كندا', nameEn: 'USA / Canada', flag: '🇺🇸' },
+  GB: { nameAr: 'المملكة المتحدة', nameEn: 'United Kingdom', flag: '🇬🇧' },
+  DE: { nameAr: 'ألمانيا', nameEn: 'Germany', flag: '🇩🇪' },
+};
+
+export function getCountryInfo(code?: string) {
+  if (!code) return { nameAr: 'غير محدد', nameEn: 'Unknown', flag: '🌐' };
+  const upper = code.toUpperCase();
+  return COUNTRY_NAMES[upper] || { nameAr: upper, nameEn: upper, flag: '🌐' };
+}

@@ -55,6 +55,14 @@ export function AppContent() {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [session, setSession] = useState<CampaignSession | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [categories, setCategories] = useState<string[]>([
+    'عام',
+    'عيادات',
+    'ملابس وأحذية',
+    'مطاعم',
+    'عقارات',
+    'خدمات',
+  ]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Remote synchronization function for contacts and active campaign sessions
@@ -239,6 +247,27 @@ export function AppContent() {
     if (target) await saveContacts([target]);
   };
 
+  const handleUpdateContactCategory = async (id: string, newCategory: string) => {
+    const updated = contacts.map((c) => (c.id === id ? { ...c, category: newCategory } : c));
+    setContacts(updated);
+    const target = updated.find((c) => c.id === id);
+    if (target) {
+      await saveContacts([target]);
+      const settings = getSettings();
+      if (settings.googleAppsScriptUrl) {
+        syncToGoogleSheets(settings.googleAppsScriptUrl, [target]).catch(() => {});
+      }
+    }
+  };
+
+  const handleAddCategory = (cat: string) => {
+    if (!cat || !cat.trim()) return;
+    const trimmed = cat.trim();
+    if (!categories.includes(trimmed)) {
+      setCategories((prev) => [...prev, trimmed]);
+    }
+  };
+
   // Template Handlers
   const handleSaveTemplate = async (template: MessageTemplate) => {
     const exists = templates.find((t) => t.id === template.id);
@@ -258,14 +287,12 @@ export function AppContent() {
   // Session Handlers
   const handleStartSession = async (
     templateContent: string,
-    filterMode: 'unsent' | 'all' | 'sent' = 'unsent'
+    targetContacts?: Contact[]
   ) => {
-    const validRecipients = contacts.filter((c) => {
-      if (!c.isValidPhone || c.excludedFromSession) return false;
-      if (filterMode === 'sent') return c.messagingStatus === 'sent';
-      if (filterMode === 'all') return true;
-      return c.messagingStatus !== 'sent';
-    });
+    const validRecipients = targetContacts && targetContacts.length > 0
+      ? targetContacts.filter((c) => c.isValidPhone && !c.excludedFromSession)
+      : contacts.filter((c) => c.isValidPhone && !c.excludedFromSession && c.messagingStatus !== 'sent');
+
     if (validRecipients.length === 0) return;
 
     const sessionId = `session_${Date.now()}`;
@@ -466,6 +493,8 @@ export function AppContent() {
             onOpenImport={() => setIsImportOpen(true)}
             onToggleExclude={handleToggleExcludeContact}
             onSyncFromSheets={handleSyncFromSheets}
+            onUpdateContactCategory={handleUpdateContactCategory}
+            existingCategories={categories}
           />
         )}
 
@@ -502,6 +531,8 @@ export function AppContent() {
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onImportComplete={handleImportComplete}
+        existingCategories={categories}
+        onAddCategory={handleAddCategory}
       />
     </div>
   );

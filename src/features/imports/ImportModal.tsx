@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileType, CheckCircle2, AlertTriangle, Table, Globe } from 'lucide-react';
+import { Upload, FileType, CheckCircle2, AlertTriangle, Table, Globe, Tag, Plus } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { parseSpreadsheetFile, ParsedSpreadsheet } from '../../lib/spreadsheet';
 import { buildContactsFromRows } from '../../lib/spreadsheet/mapper';
@@ -9,9 +9,17 @@ interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImportComplete: (newContacts: Contact[]) => void;
+  existingCategories?: string[];
+  onAddCategory?: (category: string) => void;
 }
 
-export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImportComplete }) => {
+export const ImportModal: React.FC<ImportModalProps> = ({
+  isOpen,
+  onClose,
+  onImportComplete,
+  existingCategories = ['عام', 'عيادات', 'ملابس وأحذية', 'مطاعم', 'عقارات', 'خدمات'],
+  onAddCategory,
+}) => {
   const { settings, t } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,8 +34,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const [nameColumn, setNameColumn] = useState<string>('');
   const [companyColumn, setCompanyColumn] = useState<string>('');
   const [emailColumn, setEmailColumn] = useState<string>('');
+  const [categoryColumn, setCategoryColumn] = useState<string>('');
   const [customFields, setCustomFields] = useState<{ varName: string; colName: string }[]>([]);
   const [defaultCountry, setDefaultCountry] = useState<string>(settings.defaultCountry || 'EG');
+
+  // Category state
+  const [selectedCategory, setSelectedCategory] = useState<string>('عام');
+  const [isNewCategoryMode, setIsNewCategoryMode] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
 
   // Options
   const [importValidOnly, setImportValidOnly] = useState<boolean>(true);
@@ -84,6 +98,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           h.lower.includes('بريد')
       );
       if (detectedEmail) setEmailColumn(detectedEmail.original);
+
+      const detectedCategory = headersLower.find(
+        (h) =>
+          h.lower.includes('category') ||
+          h.lower.includes('تصنيف') ||
+          h.lower.includes('نشاط') ||
+          h.lower.includes('مجال') ||
+          h.lower.includes('نوع')
+      );
+      if (detectedCategory) setCategoryColumn(detectedCategory.original);
     } catch (err: any) {
       setParseError(err?.message || t.import.parseError);
     } finally {
@@ -122,15 +146,24 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       }
     }
 
+    const effectiveCategory = isNewCategoryMode && newCategoryInput.trim()
+      ? newCategoryInput.trim()
+      : (selectedCategory || 'عام');
+
+    if (isNewCategoryMode && newCategoryInput.trim() && onAddCategory) {
+      onAddCategory(newCategoryInput.trim());
+    }
+
     const mapping: ColumnMapping = {
       phoneColumn,
       nameColumn: nameColumn || undefined,
       companyColumn: companyColumn || undefined,
       emailColumn: emailColumn || undefined,
+      categoryColumn: categoryColumn || undefined,
       customColumns: customMapping,
     };
 
-    let contacts = buildContactsFromRows(parsedData.rows, mapping, defaultCountry);
+    let contacts = buildContactsFromRows(parsedData.rows, mapping, defaultCountry, effectiveCategory);
 
     if (importValidOnly) {
       contacts = contacts.filter((c) => c.isValidPhone);
@@ -382,6 +415,87 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Category Selection Card */}
+            <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-emerald-900 dark:text-emerald-200 text-sm flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-emerald-600" />
+                  <span>تصنيف الأرقام والمجال (Category)</span>
+                </h3>
+                <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                  {isNewCategoryMode ? 'إنشاء تصنيف جديد' : 'اختيار تصنيف'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                حدد تصنيف جهات الاتصال لتسهيل استهدافهم في جلسات المراسلة (مثلاً: عيادات، محلات ملابس وأحذية، عقارات...)
+              </p>
+
+              {/* Quick Select Buttons */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {Array.from(new Set(['عام', ...existingCategories])).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setIsNewCategoryMode(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                      !isNewCategoryMode && selectedCategory === cat
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                    }`}
+                  >
+                    🏷️ {cat}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setIsNewCategoryMode(true)}
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                    isNewCategoryMode
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : 'bg-emerald-100/60 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200/60'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ تصنيف مخصص</span>
+                </button>
+              </div>
+
+              {/* Custom Category Input if active */}
+              {isNewCategoryMode && (
+                <div className="pt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    placeholder="اكتب اسم التصنيف الجديد هنا (مثلاً: عيادات تجميل الرياض)..."
+                    className="flex-1 bg-white dark:bg-slate-900 border border-emerald-400 dark:border-emerald-600 rounded-lg p-2.5 text-xs outline-hidden focus:ring-2 focus:ring-emerald-500"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {/* Optional Category Column Mapping */}
+              <div className="pt-2 border-t border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between text-xs">
+                <span className="text-slate-500">أو اقرأ التصنيف من عمود في الملف مباشرة (اختياري):</span>
+                <select
+                  value={categoryColumn}
+                  onChange={(e) => setCategoryColumn(e.target.value)}
+                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-1.5 text-xs"
+                >
+                  <option value="">بدون (استخدم التصنيف المحدد أعلاه)</option>
+                  {parsedData.headers.map((h) => (
+                    <option key={h} value={h}>
+                      عمود: {h}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
