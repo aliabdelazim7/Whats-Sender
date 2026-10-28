@@ -8,8 +8,11 @@ import {
   syncSessionToGoogleSheets,
   fetchSessionFromGoogleSheets,
   clearSessionFromGoogleSheets,
+  syncTemplatesToGoogleSheets,
+  fetchTemplatesFromGoogleSheets,
+  deleteTemplateFromGoogleSheets,
 } from '../lib/sheets';
-import { Contact, CampaignSession, QueueItem } from '../types';
+import { Contact, CampaignSession, QueueItem, MessageTemplate } from '../types';
 
 const mockContact: Contact = {
   id: 'c1',
@@ -204,5 +207,77 @@ describe('Google Sheets Two-Way Sync Module', () => {
     const body = JSON.parse(options?.body as string);
     expect(body.action).toBe('clear_session');
     expect(result.success).toBe(true);
+  });
+
+  it('sends sync_templates payload correctly with category', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      json: async () => ({ status: 'success', syncedCount: 2 }),
+    } as any);
+
+    const mockTemplates: MessageTemplate[] = [
+      { id: 't1', title: 'عرض العيادات', content: 'مرحبا دكتور {{name}}', category: 'عيادات', createdAt: 1, updatedAt: 2 },
+      { id: 't2', title: 'عرض الملابس', content: 'خصم خاص {{name}}', category: 'ملابس وأحذية', createdAt: 1, updatedAt: 2 },
+    ];
+
+    const result = await syncTemplatesToGoogleSheets('https://mock-script.com/exec', mockTemplates);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [, options] = fetchSpy.mock.calls[0];
+    const body = JSON.parse(options?.body as string);
+    expect(body.action).toBe('sync_templates');
+    expect(body.templates.length).toBe(2);
+    expect(body.templates[0].category).toBe('عيادات');
+    expect(body.templates[1].category).toBe('ملابس وأحذية');
+    expect(result.success).toBe(true);
+  });
+
+  it('fetches templates from Google Sheets', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      text: async () =>
+        JSON.stringify({
+          status: 'success',
+          templates: [
+            { id: 't1', title: 'عيادات', content: 'أهلاً {{name}}', category: 'عيادات', createdAt: 100, updatedAt: 200 },
+          ],
+        }),
+    } as any);
+
+    const templates = await fetchTemplatesFromGoogleSheets('https://mock-script.com/exec');
+    expect(templates.length).toBe(1);
+    expect(templates[0].title).toBe('عيادات');
+    expect(templates[0].category).toBe('عيادات');
+  });
+
+  it('deletes a template from Google Sheets', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      json: async () => ({ status: 'success' }),
+    } as any);
+
+    const result = await deleteTemplateFromGoogleSheets('https://mock-script.com/exec', 't1');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [, options] = fetchSpy.mock.calls[0];
+    const body = JSON.parse(options?.body as string);
+    expect(body.action).toBe('delete_template');
+    expect(body.id).toBe('t1');
+    expect(result.success).toBe(true);
+  });
+
+  it('accurately resolves countryCode when fetching contacts from Google Sheets without countryCode column', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      text: async () =>
+        JSON.stringify({
+          status: 'success',
+          contacts: [
+            { id: 'c_sa', name: 'سعودي', originalPhone: '966535547623', normalizedPhone: '966535547623' },
+            { id: 'c_eg', name: 'مصري', originalPhone: '01012345678', normalizedPhone: '201012345678' },
+            { id: 'c_ae', name: 'إماراتي', originalPhone: '971501234567', normalizedPhone: '971501234567' },
+          ],
+        }),
+    } as any);
+
+    const contacts = await fetchContactsFromGoogleSheets('https://mock-script.com/exec');
+    expect(contacts.length).toBe(3);
+    expect(contacts[0].countryCode).toBe('SA');
+    expect(contacts[1].countryCode).toBe('EG');
+    expect(contacts[2].countryCode).toBe('AE');
   });
 });

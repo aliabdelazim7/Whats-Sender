@@ -25,6 +25,9 @@ function doGet(e) {
   if (action === 'clear_session') {
     return handleClearSession();
   }
+  if (action === 'get_templates') {
+    return handleGetTemplates();
+  }
 
   return handleGetContacts();
 }
@@ -52,6 +55,12 @@ function doPost(e) {
       return handleGetSession();
     } else if (action === 'clear_session') {
       return handleClearSession();
+    } else if (action === 'sync_templates') {
+      return handleSyncTemplates(payload.templates || []);
+    } else if (action === 'get_templates') {
+      return handleGetTemplates();
+    } else if (action === 'delete_template') {
+      return handleDeleteTemplate(payload.id);
     }
 
     return createJsonResponse({ status: 'success', message: 'Action processed' });
@@ -370,6 +379,80 @@ function handleClearSession() {
     sheet.clear();
   }
   return createJsonResponse({ status: 'success', message: 'Session cleared' });
+}
+
+// ==================== Template Synchronization Functions ====================
+
+var TEMPLATE_HEADERS = ['ID', 'Title', 'Content', 'Category', 'CreatedAt', 'UpdatedAt'];
+
+function handleSyncTemplates(templates) {
+  var sheet = getOrCreateSheet('Templates');
+  sheet.clear();
+  sheet.appendRow(TEMPLATE_HEADERS);
+  sheet.getRange(1, 1, 1, TEMPLATE_HEADERS.length).setFontWeight('bold').setBackground('#E2F0D9');
+
+  if (templates && templates.length > 0) {
+    var rows = templates.map(function(t) {
+      return [
+        t.id || '',
+        t.title || '',
+        t.content || '',
+        t.category || 'عام',
+        t.createdAt || Date.now(),
+        t.updatedAt || Date.now()
+      ];
+    });
+    sheet.getRange(2, 1, rows.length, TEMPLATE_HEADERS.length).setValues(rows);
+  }
+
+  return createJsonResponse({
+    status: 'success',
+    message: 'Templates synced successfully',
+    syncedCount: templates ? templates.length : 0
+  });
+}
+
+function handleGetTemplates() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Templates');
+  if (!sheet || sheet.getLastRow() <= 1) {
+    return createJsonResponse({ status: 'success', templates: [] });
+  }
+
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  var templates = [];
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (!row[0] && !row[1]) continue;
+    templates.push({
+      id: String(row[0] || ''),
+      title: String(row[1] || ''),
+      content: String(row[2] || ''),
+      category: String(row[3] || 'عام'),
+      createdAt: Number(row[4] || Date.now()),
+      updatedAt: Number(row[5] || Date.now())
+    });
+  }
+
+  return createJsonResponse({ status: 'success', templates: templates });
+}
+
+function handleDeleteTemplate(id) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Templates');
+  if (!sheet || sheet.getLastRow() <= 1) {
+    return createJsonResponse({ status: 'success', message: 'No templates' });
+  }
+
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (String(data[i][0]).trim() === String(id).trim()) {
+      sheet.deleteRow(i + 2);
+    }
+  }
+
+  return createJsonResponse({ status: 'success', message: 'Template deleted' });
 }
 
 function createJsonResponse(data) {

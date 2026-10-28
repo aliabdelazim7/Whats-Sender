@@ -48,6 +48,12 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const [selectedRecipientIndex, setSelectedRecipientIndex] = useState(0);
   const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor');
 
+  // Template Form Category State
+  const [templateCategory, setTemplateCategory] = useState<string>('عام');
+  const [isCustomCategory, setIsCustomCategory] = useState<boolean>(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState<string>('');
+  const [savedTemplateFilter, setSavedTemplateFilter] = useState<string>('all');
+
   // Available unique categories
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
@@ -58,6 +64,25 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     });
     return Array.from(set);
   }, [contacts]);
+
+  // All known categories combining contacts and templates
+  const allKnownCategories = useMemo(() => {
+    const set = new Set<string>(['عام']);
+    availableCategories.forEach((c) => set.add(c));
+    templates.forEach((t) => {
+      if (t.category && t.category.trim()) set.add(t.category.trim());
+    });
+    return Array.from(set);
+  }, [availableCategories, templates]);
+
+  // Sync template category when user selects a specific segment category
+  const handleCategoryFilterChange = (newCat: string) => {
+    setCategoryFilter(newCat);
+    if (newCat !== 'all') {
+      setTemplateCategory(newCat);
+      setIsCustomCategory(false);
+    }
+  };
 
   // Available unique countries
   const availableCountries = useMemo(() => {
@@ -115,16 +140,36 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   const handleSave = () => {
     const templateTitle = title.trim() || `Template ${templates.length + 1}`;
+    const effectiveCategory = isCustomCategory
+      ? (customCategoryInput.trim() || 'عام')
+      : (templateCategory || 'عام');
+
     const newTemplate: MessageTemplate = {
       id: `tmpl_${Date.now()}`,
       title: templateTitle,
       content,
+      category: effectiveCategory,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     onSaveTemplate(newTemplate);
     setTitle('');
+    if (isCustomCategory) {
+      setIsCustomCategory(false);
+      setTemplateCategory(effectiveCategory);
+      setCustomCategoryInput('');
+    }
   };
+
+  const filteredSavedTemplates = useMemo(() => {
+    if (savedTemplateFilter === 'all') return templates;
+    return templates.filter((tpl) => (tpl.category || 'عام') === savedTemplateFilter);
+  }, [templates, savedTemplateFilter]);
+
+  const matchingSegmentTemplates = useMemo(() => {
+    if (categoryFilter === 'all') return [];
+    return templates.filter((tpl) => (tpl.category || 'عام') === categoryFilter);
+  }, [templates, categoryFilter]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -181,7 +226,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             <select
               value={categoryFilter}
               onChange={(e) => {
-                setCategoryFilter(e.target.value);
+                handleCategoryFilterChange(e.target.value);
                 setSelectedRecipientIndex(0);
               }}
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-medium"
@@ -275,6 +320,28 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             </div>
           </div>
         </div>
+
+        {matchingSegmentTemplates.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+              💡 قوالب مخصصة لهذا التصنيف ({categoryFilter}):
+            </span>
+            {matchingSegmentTemplates.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => {
+                  setContent(tpl.content);
+                  setTitle(tpl.title);
+                  setTemplateCategory(tpl.category || 'عام');
+                }}
+                className="px-2.5 py-1 text-xs rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 font-medium transition cursor-pointer"
+              >
+                استخدام: {tpl.title}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Mobile Tab Switcher (Visible on < lg) */}
@@ -307,25 +374,77 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         {/* Left: Editor & Template Management */}
         <div className={`space-y-4 ${mobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
-            {/* Template Title */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                {t.composer.templateTitle}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={t.composer.templatePlaceholder}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs outline-hidden"
-                />
+            {/* Template Title & Category Row */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.composer.templateTitle}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t.composer.templatePlaceholder}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    تصنيف القالب (Category)
+                  </label>
+                  {!isCustomCategory ? (
+                    <div className="flex gap-1.5">
+                      <select
+                        value={templateCategory}
+                        onChange={(e) => {
+                          if (e.target.value === '__new__') {
+                            setIsCustomCategory(true);
+                          } else {
+                            setTemplateCategory(e.target.value);
+                          }
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 text-xs font-medium"
+                      >
+                        {allKnownCategories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            🏷️ {cat}
+                          </option>
+                        ))}
+                        <option value="__new__">+ إنشاء تصنيف جديد...</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="اسم التصنيف الجديد (مثلاً: عيادات)..."
+                        value={customCategoryInput}
+                        onChange={(e) => setCustomCategoryInput(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-emerald-500 rounded-lg px-2.5 py-1.5 text-xs outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomCategory(false)}
+                        className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
                 <button
+                  type="button"
                   onClick={handleSave}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition cursor-pointer shadow-xs"
                 >
-                  <Save className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{t.composer.saveTemplate}</span>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{t.composer.saveTemplate} (وحفظه بالتصنيف)</span>
                 </button>
               </div>
             </div>
@@ -369,43 +488,95 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             </div>
           </div>
 
-          {/* Saved Templates List */}
+          {/* Saved Templates List with Category Filter */}
           {templates.length > 0 && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                {t.composer.savedTemplates} ({templates.length})
-              </h3>
-              <div className="space-y-2 max-h-56 overflow-y-auto">
-                {templates.map((tpl) => (
-                  <div
-                    key={tpl.id}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 transition"
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {t.composer.savedTemplates} ({templates.length})
+                </h3>
+
+                {/* Filter templates by category */}
+                <div className="flex items-center gap-1.5 text-xs overflow-x-auto pb-1 sm:pb-0">
+                  <span className="text-[11px] text-slate-400 shrink-0">تصفية:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSavedTemplateFilter('all')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer ${
+                      savedTemplateFilter === 'all'
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
                   >
-                    <div className="overflow-hidden pr-2 rtl:pr-0 rtl:pl-2">
-                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                        {tpl.title}
-                      </p>
-                      <p className="text-[11px] text-slate-400 truncate">{tpl.content}</p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    الكل
+                  </button>
+                  {allKnownCategories.map((cat) => {
+                    const count = templates.filter((t) => (t.category || 'عام') === cat).length;
+                    if (count === 0) return null;
+                    return (
                       <button
-                        onClick={() => {
-                          setContent(tpl.content);
-                          setTitle(tpl.title);
-                        }}
-                        className="px-2 py-1 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded cursor-pointer"
+                        key={cat}
+                        type="button"
+                        onClick={() => setSavedTemplateFilter(cat)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer shrink-0 ${
+                          savedTemplateFilter === cat
+                            ? 'bg-emerald-600 text-white font-bold'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}
                       >
-                        {t.composer.loadTemplate}
+                        🏷️ {cat} ({count})
                       </button>
-                      <button
-                        onClick={() => onDeleteTemplate(tpl.id)}
-                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-56 overflow-y-auto">
+                {filteredSavedTemplates.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">
+                    لا توجد قوالب محفوظة في هذا التصنيف
+                  </p>
+                ) : (
+                  filteredSavedTemplates.map((tpl) => (
+                    <div
+                      key={tpl.id}
+                      className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 transition"
+                    >
+                      <div className="overflow-hidden pr-2 rtl:pr-0 rtl:pl-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            {tpl.title}
+                          </p>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                            🏷️ {tpl.category || 'عام'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{tpl.content}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setContent(tpl.content);
+                            setTitle(tpl.title);
+                            if (tpl.category) {
+                              setTemplateCategory(tpl.category);
+                            }
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded cursor-pointer"
+                        >
+                          {t.composer.loadTemplate}
+                        </button>
+                        <button
+                          onClick={() => onDeleteTemplate(tpl.id)}
+                          className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded cursor-pointer"
+                          title="حذف القالب"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}

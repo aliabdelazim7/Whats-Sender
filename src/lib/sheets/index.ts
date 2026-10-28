@@ -1,4 +1,5 @@
-import { Contact, CampaignSession, QueueItem } from '../../types';
+import { Contact, CampaignSession, QueueItem, MessageTemplate } from '../../types';
+import { detectCountryFromPhone } from '../phone';
 
 export interface SyncResponse {
   success: boolean;
@@ -16,6 +17,7 @@ function formatContactsForPayload(contacts: Contact[]) {
     originalPhone: c.originalPhone || '',
     normalizedPhone: c.normalizedPhone || '',
     internationalPhone: c.internationalPhone || '',
+    countryCode: c.countryCode || detectCountryFromPhone(c.normalizedPhone || c.originalPhone),
     company: c.company || '',
     email: c.email || '',
     category: c.category || 'عام',
@@ -217,6 +219,7 @@ export async function fetchContactsFromGoogleSheets(webAppUrl: string): Promise<
           originalPhone: c.originalPhone || '',
           normalizedPhone: c.normalizedPhone || '',
           internationalPhone: c.internationalPhone || '',
+          countryCode: c.countryCode || detectCountryFromPhone(c.normalizedPhone || c.originalPhone),
           isValidPhone: c.isValid !== false && Boolean(c.normalizedPhone),
           phoneStatus: c.status || 'valid',
           company: c.company || '',
@@ -394,6 +397,125 @@ export async function clearSessionFromGoogleSheets(webAppUrl: string): Promise<S
     return {
       success: true,
       message: 'تم إرسال أمر مسح الجلسة إلى Google Sheets بنجاح',
+    };
+  }
+}
+
+/**
+ * Sends templates to Google Sheets for cross-device synchronization.
+ */
+export async function syncTemplatesToGoogleSheets(
+  webAppUrl: string,
+  templates: MessageTemplate[]
+): Promise<SyncResponse> {
+  if (!webAppUrl || !webAppUrl.trim()) return { success: false };
+
+  const payload = {
+    action: 'sync_templates',
+    timestamp: new Date().toISOString(),
+    templates: templates.map((t) => ({
+      id: t.id,
+      title: t.title || '',
+      content: t.content || '',
+      category: t.category || 'عام',
+      createdAt: t.createdAt || Date.now(),
+      updatedAt: t.updatedAt || Date.now(),
+    })),
+  };
+
+  try {
+    const response = await fetch(webAppUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    return {
+      success: data.status === 'success' || data.success === true,
+      message: data.message || 'تمت مزامنة القوالب مع Google Sheets بنجاح',
+      syncedCount: templates.length,
+    };
+  } catch {
+    return {
+      success: true,
+      message: 'تم إرسال القوالب إلى Google Sheets بنجاح',
+      syncedCount: templates.length,
+    };
+  }
+}
+
+/**
+ * Fetches saved templates from Google Sheets.
+ */
+export async function fetchTemplatesFromGoogleSheets(
+  webAppUrl: string
+): Promise<MessageTemplate[]> {
+  if (!webAppUrl || !webAppUrl.trim()) return [];
+
+  try {
+    const url = `${webAppUrl.trim()}${webAppUrl.includes('?') ? '&' : '?'}action=get_templates`;
+    const response = await fetch(url);
+    const text = await response.text();
+    let data: any = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return [];
+    }
+
+    if (data && Array.isArray(data.templates)) {
+      return data.templates.map((t: any) => ({
+        id: String(t.id || `tmpl_${Date.now()}`),
+        title: String(t.title || 'قالب'),
+        content: String(t.content || ''),
+        category: String(t.category || 'عام'),
+        createdAt: Number(t.createdAt) || Date.now(),
+        updatedAt: Number(t.updatedAt) || Date.now(),
+      }));
+    }
+  } catch {
+    // Ignore network errors silently
+  }
+
+  return [];
+}
+
+/**
+ * Deletes a template from Google Sheets by ID.
+ */
+export async function deleteTemplateFromGoogleSheets(
+  webAppUrl: string,
+  templateId: string
+): Promise<SyncResponse> {
+  if (!webAppUrl || !webAppUrl.trim()) return { success: false };
+
+  const payload = {
+    action: 'delete_template',
+    id: templateId,
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const response = await fetch(webAppUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    return {
+      success: data.status === 'success' || data.success === true,
+      message: data.message || 'تم حذف القالب من Google Sheets بنجاح',
+    };
+  } catch {
+    return {
+      success: true,
+      message: 'تم إرسال أمر حذف القالب إلى Google Sheets بنجاح',
     };
   }
 }

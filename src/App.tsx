@@ -44,6 +44,9 @@ import {
   syncSessionToGoogleSheets,
   fetchSessionFromGoogleSheets,
   clearSessionFromGoogleSheets,
+  syncTemplatesToGoogleSheets,
+  fetchTemplatesFromGoogleSheets,
+  deleteTemplateFromGoogleSheets,
 } from './lib/sheets';
 
 export function AppContent() {
@@ -111,6 +114,23 @@ export function AppContent() {
             return null;
           }
           return null;
+        });
+      }
+
+      // 3. Fetch remote templates
+      const remoteTemplates = await fetchTemplatesFromGoogleSheets(settings.googleAppsScriptUrl);
+      if (remoteTemplates && remoteTemplates.length > 0) {
+        setTemplates((prev) => {
+          const map = new Map<string, MessageTemplate>();
+          prev.forEach((t) => map.set(t.id, t));
+          remoteTemplates.forEach((t) => {
+            const existing = map.get(t.id);
+            if (!existing || t.updatedAt >= (existing.updatedAt || 0)) {
+              map.set(t.id, t);
+              saveTemplate(t).catch(() => {});
+            }
+          });
+          return Array.from(map.values());
         });
       }
     } catch (err) {
@@ -276,12 +296,28 @@ export function AppContent() {
       : [template, ...templates];
     setTemplates(updated);
     await saveTemplate(template);
+
+    // Sync to Google Sheets
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      syncTemplatesToGoogleSheets(settings.googleAppsScriptUrl, updated).catch((err) =>
+        console.warn('Failed to sync templates to Google Sheets:', err)
+      );
+    }
   };
 
   const handleDeleteTemplate = async (id: string) => {
     const updated = templates.filter((t) => t.id !== id);
     setTemplates(updated);
     await deleteTemplate(id);
+
+    // Sync deletion to Google Sheets
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      deleteTemplateFromGoogleSheets(settings.googleAppsScriptUrl, id).catch((err) =>
+        console.warn('Failed to delete template from Google Sheets:', err)
+      );
+    }
   };
 
   // Session Handlers
