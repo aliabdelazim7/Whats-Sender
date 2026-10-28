@@ -35,7 +35,13 @@ import {
 } from './lib/storage';
 import { renderTemplate } from './lib/template';
 import { getSettings } from './lib/storage';
-import { fetchContactsFromGoogleSheets, syncToGoogleSheets } from './lib/sheets';
+import {
+  fetchContactsFromGoogleSheets,
+  syncToGoogleSheets,
+  replaceAllGoogleSheetsContacts,
+  clearGoogleSheetsContacts,
+  deleteGoogleSheetsContact,
+} from './lib/sheets';
 
 export function AppContent() {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -101,6 +107,7 @@ export function AppContent() {
 
   // Contact Handlers
   const handleImportComplete = async (newContacts: Contact[]) => {
+    const isFirstBatch = contacts.length === 0;
     const updated = [...contacts, ...newContacts];
     setContacts(updated);
     await saveContacts(newContacts);
@@ -108,9 +115,15 @@ export function AppContent() {
     // Auto-backup to Google Sheets in background
     const settings = getSettings();
     if (settings.googleAppsScriptUrl) {
-      syncToGoogleSheets(settings.googleAppsScriptUrl, newContacts).catch((err) =>
-        console.warn('Background auto-backup to Google Sheets failed:', err)
-      );
+      if (isFirstBatch) {
+        replaceAllGoogleSheetsContacts(settings.googleAppsScriptUrl, newContacts).catch((err) =>
+          console.warn('Background auto-backup replace failed:', err)
+        );
+      } else {
+        syncToGoogleSheets(settings.googleAppsScriptUrl, newContacts).catch((err) =>
+          console.warn('Background auto-backup to Google Sheets failed:', err)
+        );
+      }
     }
   };
 
@@ -121,7 +134,9 @@ export function AppContent() {
     }
     const remoteContacts = await fetchContactsFromGoogleSheets(settings.googleAppsScriptUrl);
     if (!remoteContacts || remoteContacts.length === 0) {
-      throw new Error('لم يتم العثور على أرقام أو بيانات في Google Sheet حتى الآن');
+      setContacts([]);
+      await clearAllContacts();
+      return;
     }
     setContacts(remoteContacts);
     await clearAllContacts();
@@ -129,14 +144,33 @@ export function AppContent() {
   };
 
   const handleDeleteContact = async (id: string) => {
+    const target = contacts.find((c) => c.id === id);
     const updated = contacts.filter((c) => c.id !== id);
     setContacts(updated);
     await deleteContact(id);
+
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl && target) {
+      deleteGoogleSheetsContact(
+        settings.googleAppsScriptUrl,
+        target.id,
+        target.normalizedPhone || target.originalPhone
+      ).catch((err) =>
+        console.warn('Failed to delete contact from remote Google Sheets:', err)
+      );
+    }
   };
 
   const handleClearAllContacts = async () => {
     setContacts([]);
     await clearAllContacts();
+
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      clearGoogleSheetsContacts(settings.googleAppsScriptUrl).catch((err) =>
+        console.warn('Failed to clear remote Google Sheets:', err)
+      );
+    }
   };
 
   const handleToggleExcludeContact = async (id: string) => {
@@ -165,8 +199,16 @@ export function AppContent() {
   };
 
   // Session Handlers
-  const handleStartSession = async (templateContent: string) => {
-    const validRecipients = contacts.filter((c) => c.isValidPhone && !c.excludedFromSession);
+  const handleStartSession = async (
+    templateContent: string,
+    filterMode: 'unsent' | 'all' | 'sent' = 'unsent'
+  ) => {
+    const validRecipients = contacts.filter((c) => {
+      if (!c.isValidPhone || c.excludedFromSession) return false;
+      if (filterMode === 'sent') return c.messagingStatus === 'sent';
+      if (filterMode === 'all') return true;
+      return c.messagingStatus !== 'sent';
+    });
     if (validRecipients.length === 0) return;
 
     const sessionId = `session_${Date.now()}`;
@@ -287,6 +329,13 @@ export function AppContent() {
     setTemplates([]);
     setSession(null);
     setQueue([]);
+
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      clearGoogleSheetsContacts(settings.googleAppsScriptUrl).catch((err) =>
+        console.warn('Failed to clear remote Google Sheets on data wipe:', err)
+      );
+    }
   };
 
   if (isLoading) {

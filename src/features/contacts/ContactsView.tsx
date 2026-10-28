@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Trash2, CheckCircle2, XCircle, Copy, UserCheck, CloudUpload, RefreshCw } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { Contact } from '../../types';
-import { syncToGoogleSheets } from '../../lib/sheets';
+import { replaceAllGoogleSheetsContacts } from '../../lib/sheets';
 
 interface ContactsViewProps {
   contacts: Contact[];
@@ -67,8 +67,8 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const res = await syncToGoogleSheets(settings.googleAppsScriptUrl, contacts);
-      setSyncStatus(`تم حفظ ${res.syncedCount || contacts.length} جهة اتصال في Google Sheets بنجاح!`);
+      const res = await replaceAllGoogleSheetsContacts(settings.googleAppsScriptUrl, contacts);
+      setSyncStatus(`تم حفظ واستبدال ${res.syncedCount || contacts.length} جهة اتصال في Google Sheets بنجاح!`);
       setTimeout(() => setSyncStatus(null), 5000);
     } catch (e: any) {
       alert(e.message || 'فشلت المزامنة مع Google Sheets');

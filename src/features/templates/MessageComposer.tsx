@@ -18,7 +18,7 @@ interface MessageComposerProps {
   templates: MessageTemplate[];
   onSaveTemplate: (template: MessageTemplate) => void;
   onDeleteTemplate: (id: string) => void;
-  onStartSessionWithTemplate: (templateContent: string) => void;
+  onStartSessionWithTemplate: (templateContent: string, filterMode?: 'unsent' | 'all' | 'sent') => void;
 }
 
 export const MessageComposer: React.FC<MessageComposerProps> = ({
@@ -144,7 +144,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
           {validContacts.length > 0 && (
             <button
-              onClick={() => onStartSessionWithTemplate(content)}
+              onClick={() => onStartSessionWithTemplate(content, recipientFilter)}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer min-h-[44px]"
             >
               <span>{t.dashboard.startSession} ({validContacts.length})</span>
