@@ -26,6 +26,19 @@ describe('Message Template & WhatsApp Link Adapter', () => {
     expect(vars).toEqual(['name', 'orderId', 'company']);
   });
 
+  it('supports spaces inside braces and Arabic variable aliases', () => {
+    const template = 'مرحباً {{ name }} من {{ الشركة }} 👋';
+    const result = renderTemplate(template, sampleContact);
+    expect(result.hasErrors).toBe(false);
+    expect(result.renderedText).toBe('مرحباً أحمد علي من التقنية الحديثة 👋');
+
+    const templateArabic = 'أهلاً يا {{الاسم}} رقمك هو {{الهاتف}}';
+    const resultArabic = renderTemplate(templateArabic, sampleContact);
+    expect(resultArabic.hasErrors).toBe(false);
+    expect(resultArabic.renderedText).toContain('أهلاً يا أحمد علي');
+    expect(resultArabic.renderedText).toContain('20 101 234 5678');
+  });
+
   it('renders variables with Arabic text, emojis, and custom fields', () => {
     const template = 'أهلاً بك يا {{name}} 👋\nطلبك: {{orderId}}\nالشركة: {{company}}';
     const result = renderTemplate(template, sampleContact);

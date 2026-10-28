@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   SkipForward,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Clock,
   ShieldCheck,
   XOctagon,
+  Sparkles,
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { CampaignSession, QueueItem } from '../../types';
@@ -35,6 +36,117 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   const [popupBlocked, setPopupBlocked] = useState(false);
   const [lastOpenedUrl, setLastOpenedUrl] = useState<string | null>(null);
   const [showQueueOnMobile, setShowQueueOnMobile] = useState(false);
+
+  const currentIndex = session?.currentIndex ?? 0;
+  const currentItem = queue[currentIndex] || queue[0];
+
+  const currentContactDigits = currentItem?.contactPhone.replace(/\D/g, '');
+  const rawUrl = currentItem
+    ? `https://wa.me/${currentContactDigits}?text=${encodeURIComponent(currentItem.renderedMessage)}`
+    : null;
+
+  const handleOpenChat = useCallback(() => {
+    if (!currentItem || !rawUrl) return;
+
+    setPopupBlocked(false);
+    setLastOpenedUrl(rawUrl);
+
+    if (settings.mockMode) {
+      onUpdateQueueItem({
+        ...currentItem,
+        status: 'opened',
+        lastAttemptAt: Date.now(),
+        attemptCount: currentItem.attemptCount + 1,
+      });
+      return;
+    }
+
+    try {
+      const newWin = window.open(rawUrl, '_blank', 'noopener,noreferrer');
+      if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+        setPopupBlocked(true);
+      } else {
+        onUpdateQueueItem({
+          ...currentItem,
+          status: 'opened',
+          lastAttemptAt: Date.now(),
+          attemptCount: currentItem.attemptCount + 1,
+        });
+      }
+    } catch {
+      setPopupBlocked(true);
+    }
+  }, [currentItem, rawUrl, settings.mockMode, onUpdateQueueItem]);
+
+  const handleConfirmSent = useCallback(() => {
+    if (!currentItem || !session) return;
+
+    onUpdateQueueItem({
+      ...currentItem,
+      status: 'confirmed_sent',
+      lastAttemptAt: Date.now(),
+    });
+
+    // Advance to next index
+    if (currentIndex < queue.length - 1) {
+      onUpdateSession({
+        ...session,
+        currentIndex: currentIndex + 1,
+        updatedAt: Date.now(),
+      });
+    } else {
+      onUpdateSession({
+        ...session,
+        status: 'completed',
+        updatedAt: Date.now(),
+      });
+    }
+  }, [currentItem, session, currentIndex, queue.length, onUpdateQueueItem, onUpdateSession]);
+
+  const handleSkip = useCallback(
+    (reason: string = 'User skipped') => {
+      if (!currentItem || !session) return;
+
+      onUpdateQueueItem({
+        ...currentItem,
+        status: 'skipped',
+        skipReason: reason,
+        lastAttemptAt: Date.now(),
+      });
+
+      if (currentIndex < queue.length - 1) {
+        onUpdateSession({
+          ...session,
+          currentIndex: currentIndex + 1,
+          updatedAt: Date.now(),
+        });
+      }
+    },
+    [currentItem, session, currentIndex, queue.length, onUpdateQueueItem, onUpdateSession]
+  );
+
+  // Keyboard Navigation: Enter or Space to Open/Confirm, Escape to Skip
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+
+      if (e.key === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        if (currentItem?.status === 'opened') {
+          handleConfirmSent();
+        } else {
+          handleOpenChat();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleSkip();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentItem, handleOpenChat, handleConfirmSent, handleSkip]);
 
   if (!session || queue.length === 0 || session.status === 'completed') {
     const isCompleted = session?.status === 'completed';
@@ -84,96 +196,10 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
     );
   }
 
-  const currentIndex = session.currentIndex;
-  const currentItem = queue[currentIndex] || queue[0];
-
   const totalCount = queue.length;
   const confirmedCount = queue.filter((q) => q.status === 'confirmed_sent').length;
   const skippedCount = queue.filter((q) => q.status === 'skipped').length;
   const pendingCount = queue.filter((q) => q.status === 'pending' || q.status === 'ready').length;
-
-  const currentContactDigits = currentItem?.contactPhone.replace(/\D/g, '');
-  const rawUrl = currentItem
-    ? `https://wa.me/${currentContactDigits}?text=${encodeURIComponent(currentItem.renderedMessage)}`
-    : null;
-
-  const handleOpenChat = () => {
-    if (!currentItem || !rawUrl) return;
-
-    setPopupBlocked(false);
-    setLastOpenedUrl(rawUrl);
-
-    if (settings.mockMode) {
-      // In Mock Mode, don't trigger actual browser windows
-      onUpdateQueueItem({
-        ...currentItem,
-        status: 'opened',
-        lastAttemptAt: Date.now(),
-        attemptCount: currentItem.attemptCount + 1,
-      });
-      return;
-    }
-
-    try {
-      const newWin = window.open(rawUrl, '_blank', 'noopener,noreferrer');
-      if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-        setPopupBlocked(true);
-      } else {
-        onUpdateQueueItem({
-          ...currentItem,
-          status: 'opened',
-          lastAttemptAt: Date.now(),
-          attemptCount: currentItem.attemptCount + 1,
-        });
-      }
-    } catch {
-      setPopupBlocked(true);
-    }
-  };
-
-  const handleConfirmSent = () => {
-    if (!currentItem) return;
-
-    onUpdateQueueItem({
-      ...currentItem,
-      status: 'confirmed_sent',
-      lastAttemptAt: Date.now(),
-    });
-
-    // Advance to next index
-    if (currentIndex < queue.length - 1) {
-      onUpdateSession({
-        ...session,
-        currentIndex: currentIndex + 1,
-        updatedAt: Date.now(),
-      });
-    } else {
-      onUpdateSession({
-        ...session,
-        status: 'completed',
-        updatedAt: Date.now(),
-      });
-    }
-  };
-
-  const handleSkip = (reason: string = 'User skipped') => {
-    if (!currentItem) return;
-
-    onUpdateQueueItem({
-      ...currentItem,
-      status: 'skipped',
-      skipReason: reason,
-      lastAttemptAt: Date.now(),
-    });
-
-    if (currentIndex < queue.length - 1) {
-      onUpdateSession({
-        ...session,
-        currentIndex: currentIndex + 1,
-        updatedAt: Date.now(),
-      });
-    }
-  };
 
 
 
@@ -361,6 +387,32 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                 <SkipForward className="w-4 h-4" />
                 <span>{t.sessions.skipContact}</span>
               </button>
+            </div>
+
+            {/* Mobile Direct WhatsApp App Launch Button */}
+            {rawUrl && (
+              <a
+                href={rawUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() =>
+                  onUpdateQueueItem({
+                    ...currentItem,
+                    status: 'opened',
+                    lastAttemptAt: Date.now(),
+                    attemptCount: currentItem.attemptCount + 1,
+                  })
+                }
+                className="sm:hidden w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-xs min-h-[44px]"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <span>فتح مباشر في تطبيق واتساب (بدون حظر النوافذ)</span>
+              </a>
+            )}
+
+            {/* Desktop Keyboard Helper */}
+            <div className="hidden sm:flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+              <span>⌨️ اختصارات لوحة المفاتيح: اضغط <b>Enter</b> أو <b>المسطرة Space</b> للفتح ثم التأكيد السريع، أو <b>Esc</b> للتخطي.</span>
             </div>
           </div>
         </div>

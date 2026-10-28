@@ -89,6 +89,32 @@ describe('Phone Normalization & Validation', () => {
     expect(res.status).toBe('invalid');
   });
 
+  it('properly converts Eastern Arabic and Persian numerals to valid phone numbers', () => {
+    // Eastern Arabic numerals (٠١٠١٢٣٤٥٦٧٨)
+    const resEasternEG = normalizePhoneNumber('٠١٠١٢٣٤٥٦٧٨', 'EG');
+    expect(resEasternEG.isValid).toBe(true);
+    expect(resEasternEG.normalized).toBe('201012345678');
+    expect(resEasternEG.country).toBe('EG');
+
+    // Saudi Arabia with Eastern Arabic numerals (٩٦٦٥٣٥٥٤٧٦٢٣)
+    const resEasternSA = normalizePhoneNumber('٩٦٦٥٣٥٥٤٧٦٢٣', 'EG');
+    expect(resEasternSA.isValid).toBe(true);
+    expect(resEasternSA.normalized).toBe('966535547623');
+    expect(resEasternSA.country).toBe('SA');
+  });
+
+  it('strips hidden Unicode formatting, LTR/RTL marks, and non-breaking spaces', () => {
+    // Number wrapped with \u200e (LTR mark) and \u200f (RTL mark)
+    const dirty = '\u200e+966535547623\u200f';
+    const cleaned = cleanRawPhone(dirty);
+    expect(cleaned).toBe('+966535547623');
+
+    const res = normalizePhoneNumber(dirty, 'EG');
+    expect(res.isValid).toBe(true);
+    expect(res.normalized).toBe('966535547623');
+    expect(res.country).toBe('SA');
+  });
+
   it('properly masks phone numbers for privacy', () => {
     expect(maskPhoneNumber('201012345678')).toBe('+2010******78');
     expect(maskPhoneNumber('123')).toBe('***');

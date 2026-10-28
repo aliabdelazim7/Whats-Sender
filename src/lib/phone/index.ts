@@ -94,12 +94,31 @@ export function detectCountryFromPhone(phone: string, defaultCountry: string = '
 }
 
 /**
- * Clean input by removing non-numeric characters except leading '+'
- * and safely handling spreadsheet number string artifacts.
+ * Convert Eastern Arabic numerals (٠-٩) and Persian numerals (۰-۹) to standard ASCII digits.
+ */
+export function convertEasternToAsciiDigits(input: string): string {
+  const easternDigits: Record<string, string> = {
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+    '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+    '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+  };
+  return input.replace(/[٠-٩۰-۹]/g, (d) => easternDigits[d] || d);
+}
+
+/**
+ * Clean input by removing invisible Unicode marks, converting Arabic numerals,
+ * safely handling spreadsheet number string artifacts, and preserving leading '+'.
  */
 export function cleanRawPhone(input: any): string {
   if (input === null || input === undefined) return '';
-  let str = String(input).trim();
+  let str = String(input);
+
+  // Strip invisible Unicode formatting & direction marks (LTR, RTL, zero-width, non-breaking spaces)
+  str = str.replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u202A-\u202E\u00A0]/g, ' ').trim();
+
+  // Convert Arabic-Indic (٠-٩) & Persian numerals to Western digits (0-9)
+  str = convertEasternToAsciiDigits(str);
 
   // If exponential scientific notation happened from Excel (e.g. 2.01E+11)
   if (/^[0-9]+(\.[0-9]+)?e\+[0-9]+$/i.test(str)) {
@@ -114,7 +133,7 @@ export function cleanRawPhone(input: any): string {
   }
 
   // Remove common whitespace and trailing .0 from Excel numeric imports
-  str = str.replace(/\.0+$/, '');
+  str = str.replace(/\.0+$/, '').trim();
   return str;
 }
 
