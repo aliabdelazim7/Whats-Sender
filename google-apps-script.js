@@ -19,6 +19,12 @@ function doGet(e) {
   if (action === 'clear_contacts') {
     return handleClearContacts();
   }
+  if (action === 'get_session') {
+    return handleGetSession();
+  }
+  if (action === 'clear_session') {
+    return handleClearSession();
+  }
 
   return handleGetContacts();
 }
@@ -40,6 +46,12 @@ function doPost(e) {
       return handleDeleteContact(payload.id, payload.phone);
     } else if (action === 'sync_contacts' || action === 'sync_results') {
       return handleSyncContacts(payload.contacts || []);
+    } else if (action === 'sync_session') {
+      return handleSyncSession(payload.session, payload.queue || []);
+    } else if (action === 'get_session') {
+      return handleGetSession();
+    } else if (action === 'clear_session') {
+      return handleClearSession();
     }
 
     return createJsonResponse({ status: 'success', message: 'Action processed' });
@@ -64,17 +76,20 @@ var HEADERS = [
   'Last Updated'
 ];
 
-function getOrCreateSheet() {
+function getOrCreateSheet(sheetName) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Contacts');
+  var name = sheetName || 'Contacts';
+  var sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet('Contacts');
+    sheet = ss.insertSheet(name);
   }
-  ensureHeaders(sheet);
+  if (name === 'Contacts') {
+    ensureContactsHeaders(sheet);
+  }
   return sheet;
 }
 
-function ensureHeaders(sheet) {
+function ensureContactsHeaders(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#E2F0D9');
@@ -82,7 +97,7 @@ function ensureHeaders(sheet) {
 }
 
 function handleClearContacts() {
-  var sheet = getOrCreateSheet();
+  var sheet = getOrCreateSheet('Contacts');
   var lastRow = sheet.getLastRow();
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
@@ -91,7 +106,7 @@ function handleClearContacts() {
 }
 
 function handleReplaceAllContacts(contacts) {
-  var sheet = getOrCreateSheet();
+  var sheet = getOrCreateSheet('Contacts');
   var lastRow = sheet.getLastRow();
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
@@ -128,7 +143,7 @@ function handleReplaceAllContacts(contacts) {
 }
 
 function handleDeleteContact(id, phone) {
-  var sheet = getOrCreateSheet();
+  var sheet = getOrCreateSheet('Contacts');
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
     return createJsonResponse({ status: 'success', message: 'Sheet is empty', deletedCount: 0 });
@@ -160,7 +175,7 @@ function handleDeleteContact(id, phone) {
 }
 
 function handleSyncContacts(contacts) {
-  var sheet = getOrCreateSheet();
+  var sheet = getOrCreateSheet('Contacts');
   var lastRow = sheet.getLastRow();
   var phoneToRowMap = {};
 
@@ -212,7 +227,7 @@ function handleSyncContacts(contacts) {
 }
 
 function handleGetContacts() {
-  var sheet = getOrCreateSheet();
+  var sheet = getOrCreateSheet('Contacts');
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
     return createJsonResponse({ status: 'success', contacts: [] });
@@ -244,6 +259,113 @@ function handleGetContacts() {
   }
 
   return createJsonResponse({ status: 'success', contacts: contacts });
+}
+
+// ==================== Session Synchronization Functions ====================
+
+function handleSyncSession(session, queue) {
+  var sheet = getOrCreateSheet('ActiveSession');
+  sheet.clear();
+
+  if (!session || !session.id) {
+    return createJsonResponse({ status: 'success', message: 'Session cleared' });
+  }
+
+  // Row 1 & 2: Session metadata
+  sheet.appendRow(['ID', 'Name', 'TemplateContent', 'CurrentIndex', 'Status', 'TotalCount', 'UpdatedAt']);
+  sheet.appendRow([
+    session.id || '',
+    session.name || '',
+    session.templateContent || '',
+    typeof session.currentIndex === 'number' ? session.currentIndex : 0,
+    session.status || 'running',
+    session.totalCount || (queue ? queue.length : 0),
+    session.updatedAt || Date.now()
+  ]);
+
+  sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#D9E1F2');
+
+  // Row 3: Blank separator
+  // Row 4: Queue headers
+  sheet.appendRow(['QueueID', 'ContactID', 'ContactName', 'ContactPhone', 'Status', 'AttemptCount', 'LastAttemptAt', 'SkipReason', 'RenderedMessage']);
+  sheet.getRange(3, 1, 1, 9).setFontWeight('bold').setBackground('#FFF2CC');
+
+  if (queue && queue.length > 0) {
+    var queueRows = queue.map(function(q) {
+      return [
+        q.id || '',
+        q.contactId || '',
+        q.contactName || '',
+        "'" + String(q.contactPhone || ''),
+        q.status || 'pending',
+        q.attemptCount || 0,
+        q.lastAttemptAt || '',
+        q.skipReason || '',
+        q.renderedMessage || ''
+      ];
+    });
+    sheet.getRange(4, 1, queueRows.length, 9).setValues(queueRows);
+  }
+
+  return createJsonResponse({ status: 'success', message: 'Session synced successfully' });
+}
+
+function handleGetSession() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('ActiveSession');
+  if (!sheet || sheet.getLastRow() < 2) {
+    return createJsonResponse({ status: 'success', session: null, queue: [] });
+  }
+
+  var metaValues = sheet.getRange(2, 1, 1, 7).getValues()[0];
+  var sessionId = String(metaValues[0] || '').trim();
+  if (!sessionId) {
+    return createJsonResponse({ status: 'success', session: null, queue: [] });
+  }
+
+  var session = {
+    id: sessionId,
+    name: String(metaValues[1] || 'Campaign'),
+    templateContent: String(metaValues[2] || ''),
+    currentIndex: Number(metaValues[3] || 0),
+    status: String(metaValues[4] || 'running'),
+    totalCount: Number(metaValues[5] || 0),
+    createdAt: Date.now(),
+    updatedAt: Number(metaValues[6] || Date.now())
+  };
+
+  var queue = [];
+  var lastRow = sheet.getLastRow();
+  if (lastRow >= 4) {
+    var queueData = sheet.getRange(4, 1, lastRow - 3, 9).getValues();
+    for (var i = 0; i < queueData.length; i++) {
+      var r = queueData[i];
+      if (!r[0]) continue;
+      queue.push({
+        id: String(r[0]),
+        sessionId: session.id,
+        contactId: String(r[1]),
+        contactName: String(r[2]),
+        contactPhone: String(r[3]).replace(/['\s]/g, ''),
+        status: String(r[4] || 'pending'),
+        attemptCount: Number(r[5] || 0),
+        lastAttemptAt: r[6] ? Number(r[6]) : undefined,
+        skipReason: r[7] ? String(r[7]) : undefined,
+        renderedMessage: String(r[8] || '')
+      });
+    }
+  }
+
+  return createJsonResponse({ status: 'success', session: session, queue: queue });
+}
+
+function handleClearSession() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('ActiveSession');
+  if (sheet) {
+    sheet.clear();
+  }
+  return createJsonResponse({ status: 'success', message: 'Session cleared' });
 }
 
 function createJsonResponse(data) {

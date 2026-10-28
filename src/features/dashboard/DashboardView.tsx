@@ -40,7 +40,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const sessionRemaining = session
     ? queue.length - (session.currentIndex + 1)
     : 0;
-  const confirmedSent = queue.filter((q) => q.status === 'confirmed_sent').length;
+  const contactsSentCount = contacts.filter((c) => c.messagingStatus === 'sent').length;
+  const queueConfirmed = queue.filter((q) => q.status === 'confirmed_sent').length;
+  const confirmedSent = Math.max(queueConfirmed, contactsSentCount);
   const skippedContacts = queue.filter((q) => q.status === 'skipped').length;
   const failedActions = queue.filter((q) => q.status === 'failed' || q.status === 'invalid').length;
 

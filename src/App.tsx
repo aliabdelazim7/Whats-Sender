@@ -41,6 +41,9 @@ import {
   replaceAllGoogleSheetsContacts,
   clearGoogleSheetsContacts,
   deleteGoogleSheetsContact,
+  syncSessionToGoogleSheets,
+  fetchSessionFromGoogleSheets,
+  clearSessionFromGoogleSheets,
 } from './lib/sheets';
 
 export function AppContent() {
@@ -53,6 +56,59 @@ export function AppContent() {
   const [session, setSession] = useState<CampaignSession | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Remote synchronization function for contacts and active campaign sessions
+  const refreshRemoteData = async () => {
+    const settings = getSettings();
+    if (!settings.googleAppsScriptUrl) return;
+
+    try {
+      // 1. Fetch remote contacts
+      const remoteContacts = await fetchContactsFromGoogleSheets(settings.googleAppsScriptUrl);
+      if (remoteContacts && remoteContacts.length > 0) {
+        setContacts((prev) => {
+          const map = new Map<string, Contact>();
+          remoteContacts.forEach((c) => map.set(c.normalizedPhone || c.id, c));
+          prev.forEach((c) => {
+            const key = c.normalizedPhone || c.id;
+            if (c.messagingStatus === 'sent') {
+              map.set(key, c);
+            }
+          });
+          const merged = Array.from(map.values());
+          saveContacts(merged).catch(() => {});
+          return merged;
+        });
+      }
+
+      // 2. Fetch remote active session & queue
+      const remoteSessionData = await fetchSessionFromGoogleSheets(settings.googleAppsScriptUrl);
+      if (remoteSessionData.session && remoteSessionData.queue && remoteSessionData.queue.length > 0) {
+        setSession((prevSession) => {
+          if (!prevSession || (remoteSessionData.session!.updatedAt >= (prevSession.updatedAt || 0))) {
+            saveSession(remoteSessionData.session!).catch(() => {});
+            saveQueueItems(remoteSessionData.queue).catch(() => {});
+            setQueue(remoteSessionData.queue);
+            return remoteSessionData.session;
+          }
+          return prevSession;
+        });
+      } else if (!remoteSessionData.session) {
+        // If remote explicitly cleared the session, sync locally
+        setSession((prev) => {
+          if (prev && prev.status === 'completed') return prev;
+          if (prev) {
+            deleteSession(prev.id).catch(() => {});
+            setQueue([]);
+            return null;
+          }
+          return null;
+        });
+      }
+    } catch (err) {
+      console.warn('Background sync error:', err);
+    }
+  };
 
   // Load persisted records on startup
   useEffect(() => {
@@ -71,31 +127,8 @@ export function AppContent() {
           setQueue(queueItems);
         }
 
-        // Automatic background pull: always fetch latest remote updates from Google Sheets on start
-        const settings = getSettings();
-        if (settings.googleAppsScriptUrl) {
-          fetchContactsFromGoogleSheets(settings.googleAppsScriptUrl)
-            .then(async (remoteContacts) => {
-              if (remoteContacts && remoteContacts.length > 0) {
-                // Merge intelligently preserving newest statuses
-                setContacts((prev) => {
-                  const map = new Map<string, Contact>();
-                  remoteContacts.forEach((c) => map.set(c.normalizedPhone || c.id, c));
-                  // Prefer current local changes if more recent
-                  prev.forEach((c) => {
-                    const key = c.normalizedPhone || c.id;
-                    if (c.messagingStatus === 'sent') {
-                      map.set(key, c);
-                    }
-                  });
-                  const merged = Array.from(map.values());
-                  saveContacts(merged).catch(() => {});
-                  return merged;
-                });
-              }
-            })
-            .catch(() => {});
-        }
+        // Pull latest updates from remote Google Sheets in background
+        refreshRemoteData().catch(() => {});
       } catch (err) {
         console.error('Failed to load initial data from IndexedDB:', err);
       } finally {
@@ -103,6 +136,30 @@ export function AppContent() {
       }
     }
     loadData();
+  }, []);
+
+  // Continuous auto-sync on window focus and periodic interval
+  useEffect(() => {
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        refreshRemoteData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshRemoteData();
+      }
+    }, 12000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   // Contact Handlers
@@ -242,6 +299,14 @@ export function AppContent() {
     await saveSession(newSession);
     await saveQueueItems(newQueue);
     setCurrentTab('sessions');
+
+    // Auto-sync active campaign session to Google Sheets for cross-browser parity
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      syncSessionToGoogleSheets(settings.googleAppsScriptUrl, newSession, newQueue).catch((err) =>
+        console.warn('Background sync session failed:', err)
+      );
+    }
   };
 
   const handleUpdateQueueItem = async (item: QueueItem) => {
@@ -271,11 +336,22 @@ export function AppContent() {
         }
       }
     }
+
+    // Auto-sync active queue progress to Google Sheets
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl && session) {
+      syncSessionToGoogleSheets(settings.googleAppsScriptUrl, session, updatedQueue).catch(() => {});
+    }
   };
 
   const handleUpdateSession = async (updatedSession: CampaignSession) => {
     setSession(updatedSession);
     await saveSession(updatedSession);
+
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      syncSessionToGoogleSheets(settings.googleAppsScriptUrl, updatedSession, queue).catch(() => {});
+    }
   };
 
   const handleResetSession = async () => {
@@ -296,6 +372,14 @@ export function AppContent() {
     setSession(null);
     setQueue([]);
     setCurrentTab('composer');
+
+    // Clear active session from Google Sheets
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      clearSessionFromGoogleSheets(settings.googleAppsScriptUrl).catch((err) =>
+        console.warn('Failed to clear remote session:', err)
+      );
+    }
   };
 
   const handleRestartSession = async () => {
@@ -321,6 +405,11 @@ export function AppContent() {
     setQueue(resetQueue);
     await saveSession(resetSession);
     await saveQueueItems(resetQueue);
+
+    const settings = getSettings();
+    if (settings.googleAppsScriptUrl) {
+      syncSessionToGoogleSheets(settings.googleAppsScriptUrl, resetSession, resetQueue).catch(() => {});
+    }
   };
 
   const handleClearAllLocalData = async () => {
@@ -334,6 +423,9 @@ export function AppContent() {
     if (settings.googleAppsScriptUrl) {
       clearGoogleSheetsContacts(settings.googleAppsScriptUrl).catch((err) =>
         console.warn('Failed to clear remote Google Sheets on data wipe:', err)
+      );
+      clearSessionFromGoogleSheets(settings.googleAppsScriptUrl).catch((err) =>
+        console.warn('Failed to clear remote session on data wipe:', err)
       );
     }
   };

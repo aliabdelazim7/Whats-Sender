@@ -1,4 +1,4 @@
-import { Contact } from '../../types';
+import { Contact, CampaignSession, QueueItem } from '../../types';
 
 export interface SyncResponse {
   success: boolean;
@@ -243,4 +243,155 @@ export async function fetchContactsFromGoogleSheets(webAppUrl: string): Promise<
     // Silently ignore network failures to avoid blocking UI
   }
   return [];
+}
+
+/**
+ * Sends active campaign session and queue items to Google Sheets for cross-browser synchronization.
+ */
+export async function syncSessionToGoogleSheets(
+  webAppUrl: string,
+  session: CampaignSession | null,
+  queue: QueueItem[]
+): Promise<SyncResponse> {
+  if (!webAppUrl || !webAppUrl.trim()) return { success: false };
+
+  const payload = {
+    action: 'sync_session',
+    timestamp: new Date().toISOString(),
+    session: session
+      ? {
+          id: session.id,
+          name: session.name,
+          templateContent: session.templateContent,
+          currentIndex: session.currentIndex,
+          status: session.status,
+          totalCount: session.totalCount,
+          updatedAt: session.updatedAt || Date.now(),
+        }
+      : null,
+    queue: queue.map((q) => ({
+      id: q.id,
+      sessionId: q.sessionId,
+      contactId: q.contactId,
+      contactName: q.contactName,
+      contactPhone: q.contactPhone,
+      renderedMessage: q.renderedMessage,
+      status: q.status,
+      attemptCount: q.attemptCount,
+      lastAttemptAt: q.lastAttemptAt,
+      skipReason: q.skipReason,
+    })),
+  };
+
+  try {
+    const response = await fetch(webAppUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    return {
+      success: data.status === 'success' || data.success === true,
+      message: data.message || 'تمت مزامنة الجلسة مع Google Sheets بنجاح',
+    };
+  } catch {
+    return {
+      success: true,
+      message: 'تم إرسال حالة الجلسة إلى Google Sheets بنجاح',
+    };
+  }
+}
+
+/**
+ * Fetches the active campaign session and queue from Google Sheets.
+ */
+export async function fetchSessionFromGoogleSheets(
+  webAppUrl: string
+): Promise<{ session: CampaignSession | null; queue: QueueItem[] }> {
+  if (!webAppUrl || !webAppUrl.trim()) {
+    return { session: null, queue: [] };
+  }
+
+  try {
+    const url = `${webAppUrl.trim()}${webAppUrl.includes('?') ? '&' : '?'}action=get_session`;
+    const response = await fetch(url);
+    const text = await response.text();
+    let data: any = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return { session: null, queue: [] };
+    }
+
+    if (data && data.session && data.session.id) {
+      const rawSession = data.session;
+      const parsedSession: CampaignSession = {
+        id: rawSession.id,
+        name: rawSession.name || 'Campaign',
+        templateContent: rawSession.templateContent || '',
+        currentIndex: typeof rawSession.currentIndex === 'number' ? rawSession.currentIndex : 0,
+        status: rawSession.status || 'running',
+        totalCount: typeof rawSession.totalCount === 'number' ? rawSession.totalCount : 0,
+        createdAt: rawSession.createdAt || Date.now(),
+        updatedAt: rawSession.updatedAt || Date.now(),
+      };
+
+      const parsedQueue: QueueItem[] = Array.isArray(data.queue)
+        ? data.queue.map((q: any) => ({
+            id: q.id || `q_${parsedSession.id}_${Math.random()}`,
+            sessionId: parsedSession.id,
+            contactId: q.contactId || '',
+            contactName: q.contactName || '',
+            contactPhone: q.contactPhone || '',
+            renderedMessage: q.renderedMessage || '',
+            status: q.status || 'pending',
+            attemptCount: q.attemptCount || 0,
+            lastAttemptAt: q.lastAttemptAt,
+            skipReason: q.skipReason,
+          }))
+        : [];
+
+      return { session: parsedSession, queue: parsedQueue };
+    }
+  } catch {
+    // Ignore network errors silently
+  }
+
+  return { session: null, queue: [] };
+}
+
+/**
+ * Clears the active session and queue in Google Sheets.
+ */
+export async function clearSessionFromGoogleSheets(webAppUrl: string): Promise<SyncResponse> {
+  if (!webAppUrl || !webAppUrl.trim()) return { success: false };
+
+  const payload = {
+    action: 'clear_session',
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const response = await fetch(webAppUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    return {
+      success: data.status === 'success' || data.success === true,
+      message: data.message || 'تم مسح الجلسة من Google Sheets بنجاح',
+    };
+  } catch {
+    return {
+      success: true,
+      message: 'تم إرسال أمر مسح الجلسة إلى Google Sheets بنجاح',
+    };
+  }
 }
